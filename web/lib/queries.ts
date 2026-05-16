@@ -94,6 +94,26 @@ export function usePatchStar() {
   return useMutation({
     mutationFn: ({ id, body }: { id: number; body: { status?: string; note?: string; watching?: boolean } }) =>
       api.patchStar(id, body),
+    onMutate: async ({ id, body }) => {
+      await qc.cancelQueries({ queryKey: ["stars", "all"] });
+      const prev = qc.getQueryData<Star[]>(["stars", "all"]);
+      qc.setQueryData<Star[]>(["stars", "all"], (cur) =>
+        cur
+          ? cur.map((s) =>
+              s.id === id
+                ? {
+                    ...s,
+                    ...(body.status !== undefined ? { status: body.status as Star["status"] } : {}),
+                    ...(body.note !== undefined ? { note: body.note } : {}),
+                    ...(body.watching !== undefined ? { watching: body.watching } : {}),
+                    ...(body.status ? { lastReviewedAt: new Date().toISOString() } : {}),
+                  }
+                : s
+            )
+          : cur
+      );
+      return { prev };
+    },
     onSuccess: (apiStar) => {
       const updated = mapStar(apiStar);
       qc.setQueryData<Star[]>(["stars", "all"], (cur) =>
@@ -102,7 +122,10 @@ export function usePatchStar() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["review"] });
     },
-    onError: (err) => reportError("Couldn't update repo", err),
+    onError: (err, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["stars", "all"], ctx.prev);
+      reportError("Couldn't update repo", err);
+    },
   });
 }
 

@@ -230,6 +230,15 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
 
       if (e.key === "?") { setShowShortcuts(true); return; }
 
+      // "/" focuses search on /stars (handled inside the screen); on every
+      // other route open the command palette so the user always has a place
+      // to type.
+      if (e.key === "/" && route !== "stars") {
+        e.preventDefault();
+        setShowPalette(true);
+        return;
+      }
+
       if (buffer === "g") {
         if (e.key === "i") { setRoute("inbox"); setSmartInbox(null); buffer = ""; return; }
         if (e.key === "s") { setRoute("stars"); setSmartInbox(null); buffer = ""; return; }
@@ -267,7 +276,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [selectedId, visibleStars, showShortcuts, setStatus, setRoute]);
+  }, [selectedId, visibleStars, showShortcuts, setStatus, setRoute, route]);
 
   const selected = stars2.find((s) => s.id === selectedId);
 
@@ -332,6 +341,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
               loading={starsLoading} loadError={starsError}
               selectedId={selectedId} setSelectedId={setSelectedId}
               onOpen={(id) => { setSelectedId(id); setDetailOpen(true); }}
+              onSetStatus={setStatus} onAddTag={addTag}
               onSync={onSync} syncing={syncing}
               smartInbox={smartInbox}
               onClearSmartInbox={() => setSmartInbox(null)}

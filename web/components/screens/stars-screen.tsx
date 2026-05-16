@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Notification, Star } from "@/lib/types";
 import { Topbar } from "../topbar";
 import { Icon } from "../icons";
 import { Kbd, STATUSES, TAG_COLOR } from "../primitives";
 import { StarRow } from "../star-row";
 import { Select, Toggle } from "../select-toggle";
+import { BulkActionBar } from "../dialogs";
 import { LANGUAGE_COLOR, SMART_INBOXES, getReadme } from "@/lib/mock-data";
 import { useTagsCtx } from "../providers";
 
@@ -17,6 +18,8 @@ interface Props {
   selectedId?: number;
   setSelectedId: (id: number) => void;
   onOpen: (id: number) => void;
+  onSetStatus: (id: number, status: Star["status"]) => void;
+  onAddTag: (id: number, tagId: number) => void;
   onSync: () => void;
   syncing: boolean;
   smartInbox: string | null;
@@ -28,7 +31,7 @@ interface Props {
 }
 
 export function StarsScreen({
-  stars, loading, loadError, selectedId, setSelectedId, onOpen, onSync, syncing,
+  stars, loading, loadError, selectedId, setSelectedId, onOpen, onSetStatus, onAddTag, onSync, syncing,
   smartInbox, onClearSmartInbox, onExport,
   notifications, onMarkNotification, onOpenPalette,
 }: Props) {
@@ -38,6 +41,9 @@ export function StarsScreen({
   });
   const [sort, setSort] = useState("starred-desc");
   const { tags: TAGS, tagById } = useTagsCtx();
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
+  const lastCheckedRef = useRef<number | null>(null);
 
   const smartFilter = useMemo(() => {
     if (!smartInbox) return null;
@@ -84,8 +90,54 @@ export function StarsScreen({
 
   const languages = Array.from(new Set(stars.map((s) => s.language).filter(Boolean))).sort() as string[];
 
+  // "/" to focus the local search; "Escape" clears bulk selection.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      const typing = t.tagName === "INPUT" || t.tagName === "TEXTAREA";
+      if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === "Escape" && checkedIds.size > 0) {
+        setCheckedIds(new Set());
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [checkedIds]);
+
+  const toggleCheck = (id: number, withShift: boolean) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (withShift && lastCheckedRef.current != null) {
+        const ids = filtered.map((s) => s.id);
+        const a = ids.indexOf(lastCheckedRef.current);
+        const b = ids.indexOf(id);
+        if (a >= 0 && b >= 0) {
+          const [lo, hi] = a < b ? [a, b] : [b, a];
+          for (let i = lo; i <= hi; i++) next.add(ids[i]);
+        }
+      } else {
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      }
+      lastCheckedRef.current = id;
+      return next;
+    });
+  };
+  const applyBulkStatus = (status: Star["status"]) => {
+    checkedIds.forEach((id) => onSetStatus(id, status));
+    setCheckedIds(new Set());
+  };
+  const applyBulkTag = (tagId: number) => {
+    checkedIds.forEach((id) => onAddTag(id, tagId));
+    setCheckedIds(new Set());
+  };
+  const selectable = checkedIds.size > 0;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <Topbar
         title="Stars"
         subtitle={smartFilter ? `${filtered.length} in ${smartFilter.label}` : `${filtered.length} of ${stars.length}`}
@@ -134,7 +186,7 @@ export function StarsScreen({
           background: "var(--surface-1)",
         }}>
           <Icon name="search" size={13} />
-          <input value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
+          <input ref={searchRef} value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
             placeholder={filter.searchReadme ? "Search name, desc, notes, READMEs…" : "Search name, description, notes…"}
             style={{
               border: "none", outline: "none", flex: 1, fontSize: 12.5,
@@ -202,10 +254,22 @@ export function StarsScreen({
             <StarRow key={s.id} star={s} density="comfy"
               selected={s.id === selectedId}
               onSelect={() => setSelectedId(s.id)}
-              onOpen={() => onOpen(s.id)} />
+              onOpen={() => onOpen(s.id)}
+              selectable={selectable}
+              checked={checkedIds.has(s.id)}
+              onToggleCheck={toggleCheck} />
           ))
         )}
       </div>
+
+      {selectable && (
+        <BulkActionBar
+          count={checkedIds.size}
+          onClear={() => setCheckedIds(new Set())}
+          onSetStatus={applyBulkStatus}
+          onAddTag={applyBulkTag}
+        />
+      )}
     </div>
   );
 }

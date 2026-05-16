@@ -84,6 +84,66 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
 
 // ============= ExportDialog =============
 
+function buildExport(
+  format: "markdown" | "json" | "opml",
+  rows: Star[],
+  tagById: (id: number) => { name: string } | undefined
+): { content: string; mime: string; filename: string } {
+  if (format === "markdown") {
+    const body =
+      `# My GitHub Stars\n\n` +
+      rows
+        .map(
+          (s) =>
+            `## [${s.owner}/${s.name}](https://github.com/${s.owner}/${s.name})\n\n` +
+            `${s.description}\n\n` +
+            `- **Status:** ${s.status}\n` +
+            `- **Language:** ${s.language || "—"} · ★ ${s.stars}\n` +
+            `- **Tags:** ${s.tags.map((t) => "#" + tagById(t)?.name).filter(Boolean).join(" ") || "—"}\n` +
+            (s.note ? `\n> ${s.note.split("\n").join("\n> ")}\n` : "")
+        )
+        .join("\n");
+    return { content: body, mime: "text/markdown;charset=utf-8", filename: "starbase-export.md" };
+  }
+  if (format === "json") {
+    const json = JSON.stringify(
+      rows.map((s) => ({
+        repo: `${s.owner}/${s.name}`,
+        url: `https://github.com/${s.owner}/${s.name}`,
+        status: s.status,
+        tags: s.tags.map((t) => tagById(t)?.name).filter(Boolean),
+        note: s.note || null,
+        starredAt: s.starredAt,
+      })),
+      null,
+      2
+    );
+    return { content: json, mime: "application/json;charset=utf-8", filename: "starbase-export.json" };
+  }
+  const opml =
+    `<?xml version="1.0"?>\n<opml version="2.0">\n  <head><title>GitHub Stars</title></head>\n  <body>\n` +
+    rows
+      .map(
+        (s) =>
+          `    <outline text="${s.owner}/${s.name}" type="link" url="https://github.com/${s.owner}/${s.name}" description="${(s.description || "").replace(/"/g, "&quot;")}"/>`
+      )
+      .join("\n") +
+    "\n  </body>\n</opml>";
+  return { content: opml, mime: "text/x-opml;charset=utf-8", filename: "starbase-export.opml" };
+}
+
+function triggerDownload(filename: string, mime: string, content: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
 export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () => void }) {
   const [format, setFormat] = useState<"markdown" | "json" | "opml">("markdown");
   const [scope, setScope] = useState<"all" | "kept" | "with-notes" | "inbox">("kept");
@@ -105,46 +165,17 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
 
   const preview = useMemo(() => {
     const top = selected.slice(0, 3);
-    if (format === "markdown") {
-      return (
-        `# My GitHub Stars\n\n` +
-        top.map((s) =>
-`## [${s.owner}/${s.name}](https://github.com/${s.owner}/${s.name})
-
-${s.description}
-
-- **Status:** ${s.status}
-- **Language:** ${s.language || "—"} · ★ ${s.stars}
-- **Tags:** ${s.tags.map((t) => "#" + tagById(t)?.name).filter(Boolean).join(" ") || "—"}
-${s.note ? `\n> ${s.note.split("\n").join("\n> ")}\n` : ""}`
-        ).join("\n") +
-        (selected.length > 3 ? `\n\n_… and ${selected.length - 3} more_` : "")
-      );
+    const { content } = buildExport(format, top, tagById);
+    if (format === "markdown" && selected.length > 3) {
+      return content + `\n\n_… and ${selected.length - 3} more_`;
     }
-    if (format === "json") {
-      return JSON.stringify(
-        top.map((s) => ({
-          repo: `${s.owner}/${s.name}`,
-          url: `https://github.com/${s.owner}/${s.name}`,
-          status: s.status,
-          tags: s.tags.map((t) => tagById(t)?.name).filter(Boolean),
-          note: s.note || null,
-          starredAt: s.starredAt,
-        })),
-        null,
-        2
-      );
-    }
-    return (
-      `<?xml version="1.0"?>\n<opml version="2.0">\n  <head><title>GitHub Stars</title></head>\n  <body>\n` +
-      top
-        .map((s) =>
-          `    <outline text="${s.owner}/${s.name}" type="link" url="https://github.com/${s.owner}/${s.name}" description="${(s.description || "").replace(/"/g, "'")}"/>`
-        )
-        .join("\n") +
-      "\n  </body>\n</opml>"
-    );
-  }, [format, scope, selected]);
+    return content;
+  }, [format, scope, selected, tagById]);
+
+  const onDownload = () => {
+    const { content, mime, filename } = buildExport(format, selected, tagById);
+    triggerDownload(filename, mime, content);
+  };
 
   return (
     <div onClick={onClose} style={{
@@ -235,7 +266,9 @@ ${s.note ? `\n> ${s.note.split("\n").join("\n> ")}\n` : ""}`
           <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{selected.length} repos · {format.toUpperCase()}</span>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} style={ghostBtnX}>Cancel</button>
-          <button style={primaryBtnX}><Icon name="extLink" size={11} /> Download</button>
+          <button style={primaryBtnX} onClick={onDownload}>
+            <Icon name="extLink" size={11} /> Download
+          </button>
         </div>
       </div>
     </div>
