@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: starbase
+      POSTGRES_PASSWORD: starbase
+      POSTGRES_DB: starbase
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U starbase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["/usr/local/bin/migrate", "up"]
+    environment:
+      STARBASE_DB_URL: postgres://starbase:starbase@postgres:5432/starbase?sslmode=disable
+      STARBASE_TOKEN_KEY: ${STARBASE_TOKEN_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  server:
+    build: .
+    command: ["/usr/local/bin/server"]
+    environment:
+      STARBASE_HTTP_ADDR: ":8080"
+      STARBASE_PUBLIC_URL: http://localhost:8080
+      STARBASE_WEB_URL: http://localhost:3000
+      STARBASE_DB_URL: postgres://starbase:starbase@postgres:5432/starbase?sslmode=disable
+      STARBASE_GITHUB_CLIENT_ID: ${STARBASE_GITHUB_CLIENT_ID:-}
+      STARBASE_GITHUB_CLIENT_SECRET: ${STARBASE_GITHUB_CLIENT_SECRET:-}
+      STARBASE_GITHUB_CALLBACK: http://localhost:8080/api/auth/github/callback
+      STARBASE_TOKEN_KEY: ${STARBASE_TOKEN_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      STARBASE_SESSION_SECRET: ${STARBASE_SESSION_SECRET:-change-me}
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    command: ["/usr/local/bin/worker"]
+    environment:
+      STARBASE_DB_URL: postgres://starbase:starbase@postgres:5432/starbase?sslmode=disable
+      STARBASE_TOKEN_KEY: ${STARBASE_TOKEN_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      STARBASE_WORKER_CONCURRENCY: "2"
+      STARBASE_GITHUB_RATE_PER_SEC: "1"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build: ./web
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8080
+      API_BASE_INTERNAL: http://server:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+
+volumes:
+  pgdata:

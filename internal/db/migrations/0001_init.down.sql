@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS sync_jobs;
+DROP TABLE IF EXISTS user_sync_state;
+DROP TABLE IF EXISTS user_starred_repo_tags;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS user_starred_repos;
+DROP TABLE IF EXISTS repos;
+DROP TABLE IF EXISTS users;

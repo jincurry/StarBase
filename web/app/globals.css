@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme="light"] {
+  --surface-0: oklch(99.5% 0.003 270);
+  --surface-1: oklch(98% 0.004 270);
+  --surface-2: oklch(95% 0.006 270);
+  --border: oklch(92% 0.005 270);
+  --border-soft: oklch(95% 0.004 270);
+  --border-strong: oklch(86% 0.006 270);
+  --ink-0: oklch(20% 0.01 270);
+  --ink-1: oklch(32% 0.01 270);
+  --ink-2: oklch(48% 0.01 270);
+  --ink-3: oklch(62% 0.008 270);
+  --accent: oklch(54% 0.18 275);
+  --accent-soft: oklch(96.5% 0.025 275);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+  --surface-0: oklch(18% 0.008 270);
+  --surface-1: oklch(21% 0.009 270);
+  --surface-2: oklch(26% 0.01 270);
+  --border: oklch(29% 0.01 270);
+  --border-soft: oklch(25% 0.008 270);
+  --border-strong: oklch(36% 0.012 270);
+  --ink-0: oklch(96% 0.005 270);
+  --ink-1: oklch(86% 0.008 270);
+  --ink-2: oklch(70% 0.01 270);
+  --ink-3: oklch(54% 0.01 270);
+  --accent: oklch(72% 0.16 275);
+  --accent-soft: oklch(28% 0.07 275);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+  color: var(--ink-0);
+  background: var(--surface-1);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink-0);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--accent) 50%, transparent);
+  outline-offset: 1px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 999px;
+  border: 2px solid var(--surface-0);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,33 @@
+package db
+
+import (
+	"context"
+	"embed"
+	"fmt"
+	"io/fs"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+//go:embed migrations/*.sql
+var MigrationFS embed.FS
+
+func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
+	cfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		return nil, fmt.Errorf("parse db url: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("connect db: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping db: %w", err)
+	}
+	return pool, nil
+}
+
+func MigrationFiles() ([]fs.DirEntry, error) {
+	return MigrationFS.ReadDir("migrations")
+}

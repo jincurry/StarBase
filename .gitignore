@@ -1,0 +1,27 @@
+# Go
+bin/
+*.out
+*.test
+vendor/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Build / runtime
+dist/
+tmp/
+*.log
+
+# Local config overrides
+config.local.yaml
