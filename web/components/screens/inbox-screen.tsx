@@ -11,6 +11,8 @@ import { useStats } from "@/lib/queries";
 
 interface Props {
   stars: Star[];
+  loading?: boolean;
+  loadError?: string | null;
   selectedId?: number;
   setSelectedId: (id: number) => void;
   onOpen: (id: number) => void;
@@ -42,6 +44,56 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ac
   );
 }
 
+function SkeletonRows() {
+  return (
+    <div>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto 1fr auto",
+            alignItems: "center",
+            gap: 14,
+            padding: "11px 18px",
+            borderBottom: "1px solid var(--border-soft)",
+            opacity: 1 - i * 0.12,
+          }}
+        >
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--surface-2)" }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ height: 12, width: "32%", borderRadius: 4, background: "var(--surface-2)", marginBottom: 6 }} />
+            <div style={{ height: 10, width: "70%", borderRadius: 4, background: "var(--surface-2)" }} />
+          </div>
+          <div style={{ height: 10, width: 60, borderRadius: 4, background: "var(--surface-2)" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LoadErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div style={{
+      padding: "60px 40px", display: "flex", flexDirection: "column",
+      alignItems: "center", textAlign: "center",
+    }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: 12,
+        background: "oklch(96% 0.04 25)", color: "oklch(40% 0.18 25)",
+        display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14,
+      }}>
+        <Icon name="bug" size={24} />
+      </div>
+      <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px" }}>Couldn't load your stars</h2>
+      <p style={{ fontSize: 12.5, color: "var(--ink-2)", maxWidth: 360, margin: "0 0 16px", lineHeight: 1.55 }}>
+        {message}
+      </p>
+      <button onClick={onRetry} style={primaryBtn}>Retry sync</button>
+    </div>
+  );
+}
+
 function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
   return (
     <div style={{ padding: "60px 40px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
@@ -65,7 +117,7 @@ function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
 }
 
 export function InboxScreen({
-  stars, selectedId, setSelectedId, onOpen, onSetStatus, onAddTag, counts,
+  stars, loading, loadError, selectedId, setSelectedId, onOpen, onSetStatus, onAddTag, counts,
   onSync, syncing, notifications, onMarkNotification, onOpenPalette,
   onOpenDigest, digestVisible, onDismissDigest,
 }: Props) {
@@ -148,7 +200,11 @@ export function InboxScreen({
       )}
 
       <div style={{ overflow: "auto", flex: 1 }}>
-        {inboxStars.length === 0 ? (
+        {loadError ? (
+          <LoadErrorState message={loadError} onRetry={onSync} />
+        ) : loading && inboxStars.length === 0 ? (
+          <SkeletonRows />
+        ) : inboxStars.length === 0 ? (
           <InboxZero processedThisWeek={23} />
         ) : (
           inboxStars.map((s) => (

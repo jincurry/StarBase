@@ -23,6 +23,7 @@ import { ReviewScreen } from "./screens/review-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { CommandPalette } from "./command-palette";
 import { ExportDialog, ShortcutsModal, WeeklyDigest } from "./dialogs";
+import { TokenInvalidBanner } from "./banners";
 
 const ROUTES = ["inbox", "stars", "review", "settings"] as const;
 type Route = (typeof ROUTES)[number];
@@ -270,6 +271,13 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
 
   const selected = stars2.find((s) => s.id === selectedId);
 
+  // UI flags that bubble down to screens / banners.
+  const tokenInvalid = !!meQ.data?.sync && meQ.data.sync.last_sync_status === "token_invalid";
+  const starsLoading = authed && starsQ.isLoading;
+  // Suppress 401 errors here — the auth gate above will redirect to landing.
+  const isAuthErr = starsQ.error instanceof HttpError && starsQ.error.status === 401;
+  const starsError = !isAuthErr && starsQ.error instanceof Error ? starsQ.error.message : null;
+
   const openStar = (id: number) => {
     setSelectedId(id);
     setDetailOpen(true);
@@ -296,7 +304,9 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
         onExport={() => setShowExport(true)}
       />
 
-      <main style={{ flex: 1, minWidth: 0, display: "flex", position: "relative" }}>
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", position: "relative" }}>
+        {tokenInvalid && <TokenInvalidBanner />}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", position: "relative", overflow: "hidden" }}>
         <div style={{
           flex: !isNarrow && detailOpen && (route === "inbox" || route === "stars") ? "1 1 60%" : "1 1 100%",
           minWidth: 0, display: "flex", flexDirection: "column",
@@ -304,6 +314,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
         }}>
           {route === "inbox" && (
             <InboxScreen stars={stars2}
+              loading={starsLoading} loadError={starsError}
               selectedId={selectedId} setSelectedId={setSelectedId}
               onOpen={(id) => { setSelectedId(id); setDetailOpen(true); }}
               onSetStatus={setStatus} onAddTag={addTag} counts={counts}
@@ -318,6 +329,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
           )}
           {route === "stars" && (
             <StarsScreen stars={stars2}
+              loading={starsLoading} loadError={starsError}
               selectedId={selectedId} setSelectedId={setSelectedId}
               onOpen={(id) => { setSelectedId(id); setDetailOpen(true); }}
               onSync={onSync} syncing={syncing}
@@ -375,6 +387,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
             </div>
           )
         )}
+        </div>
       </main>
 
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}

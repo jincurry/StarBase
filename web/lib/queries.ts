@@ -3,6 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Star, Tag } from "./types";
 import { ApiStar, ApiTag, HttpError, api, mapStar, mapTag } from "./api";
+import { toastBus } from "@/components/toasts";
+
+function reportError(label: string, err: unknown) {
+  const msg = err instanceof Error ? err.message : String(err);
+  toastBus.push({ kind: "error", message: label, hint: msg });
+}
 
 // ---- queries ---------------------------------------------------------------
 
@@ -96,6 +102,7 @@ export function usePatchStar() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       qc.invalidateQueries({ queryKey: ["review"] });
     },
+    onError: (err) => reportError("Couldn't update repo", err),
   });
 }
 
@@ -116,8 +123,9 @@ export function useAttachTag() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["stars", "all"], ctx.prev);
+      reportError("Couldn't attach tag", e);
     },
   });
 }
@@ -137,8 +145,9 @@ export function useDetachTag() {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["stars", "all"], ctx.prev);
+      reportError("Couldn't remove tag", e);
     },
   });
 }
@@ -150,6 +159,7 @@ export function useCreateTag() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tags"] });
     },
+    onError: (err) => reportError("Couldn't create tag", err),
   });
 }
 
@@ -160,7 +170,9 @@ export function useSyncMutation() {
       type === "reconcile" ? api.reconcileSync() : api.incrementalSync(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sync-status"] });
+      toastBus.push({ kind: "info", message: "Sync queued — running in the background" });
     },
+    onError: (err) => reportError("Couldn't start sync", err),
   });
 }
 

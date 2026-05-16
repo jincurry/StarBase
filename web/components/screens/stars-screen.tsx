@@ -12,6 +12,8 @@ import { useTagsCtx } from "../providers";
 
 interface Props {
   stars: Star[];
+  loading?: boolean;
+  loadError?: string | null;
   selectedId?: number;
   setSelectedId: (id: number) => void;
   onOpen: (id: number) => void;
@@ -26,7 +28,7 @@ interface Props {
 }
 
 export function StarsScreen({
-  stars, selectedId, setSelectedId, onOpen, onSync, syncing,
+  stars, loading, loadError, selectedId, setSelectedId, onOpen, onSync, syncing,
   smartInbox, onClearSmartInbox, onExport,
   notifications, onMarkNotification, onOpenPalette,
 }: Props) {
@@ -168,7 +170,29 @@ export function StarsScreen({
       </div>
 
       <div style={{ overflow: "auto", flex: 1 }}>
-        {filtered.length === 0 ? (
+        {loadError ? (
+          <div style={{ padding: 60, textAlign: "center", color: "oklch(40% 0.18 25)", fontSize: 13 }}>
+            <Icon name="bug" size={20} />
+            <div style={{ marginTop: 10 }}>{loadError}</div>
+          </div>
+        ) : loading && stars.length === 0 ? (
+          <div>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{
+                display: "grid", gridTemplateColumns: "auto 1fr auto",
+                alignItems: "center", gap: 14, padding: "11px 18px",
+                borderBottom: "1px solid var(--border-soft)", opacity: 1 - i * 0.1,
+              }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--surface-2)" }} />
+                <div>
+                  <div style={{ height: 12, width: "36%", borderRadius: 4, background: "var(--surface-2)", marginBottom: 6 }} />
+                  <div style={{ height: 10, width: "75%", borderRadius: 4, background: "var(--surface-2)" }} />
+                </div>
+                <div style={{ height: 10, width: 60, borderRadius: 4, background: "var(--surface-2)" }} />
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
             <Icon name="search" size={24} /><br /><br />
             No stars match these filters.

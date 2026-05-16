@@ -1,8 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { GithubMark, Icon } from "@/components/icons";
+import { useMe } from "@/lib/queries";
 
 export default function Landing() {
+  const router = useRouter();
+  const me = useMe();
+
+  useEffect(() => {
+    // Already signed in? Skip the landing.
+    if (me.data?.user) {
+      router.replace(me.data.sync?.initial_sync_completed ? "/inbox" : "/welcome");
+    }
+  }, [me.data, router]);
+
   return (
     <div style={{
       minHeight: "100vh",

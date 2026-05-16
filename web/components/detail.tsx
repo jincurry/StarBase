@@ -6,6 +6,7 @@ import { fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory } from "
 import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
+import { useAttachTag, useCreateTag } from "@/lib/queries";
 
 interface DetailPanelProps {
   star?: Star;
@@ -217,8 +218,29 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
 }) {
   const { tags: allTags, tagById } = useTagsCtx();
   const tags = star.tags.map((t) => tagById(t)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
-  const availableTags = allTags.filter((t) => !star.tags.includes(t.id));
   const [showTagMenu, setShowTagMenu] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
+  const createMut = useCreateTag();
+  const attachMut = useAttachTag();
+
+  const q = tagQuery.trim().toLowerCase();
+  const availableTags = allTags
+    .filter((t) => !star.tags.includes(t.id))
+    .filter((t) => !q || t.name.toLowerCase().includes(q));
+  const exact = q ? allTags.find((t) => t.name.toLowerCase() === q) : undefined;
+  const canCreate = q.length > 0 && !exact;
+
+  const handleCreate = async () => {
+    if (!canCreate) return;
+    try {
+      const tag = await createMut.mutateAsync({ name: tagQuery.trim() });
+      await attachMut.mutateAsync({ starId: star.id, tagId: tag.id });
+      setTagQuery("");
+      setShowTagMenu(false);
+    } catch {
+      // toast already shown by mutation hook
+    }
+  };
   const history = getStarHistory(star);
 
   return (
@@ -272,15 +294,34 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
             position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 10,
             background: "var(--surface-0)", border: "1px solid var(--border-strong)",
             borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-            padding: 6, minWidth: 200, display: "flex", flexDirection: "column", gap: 1,
+            padding: 6, minWidth: 220, display: "flex", flexDirection: "column", gap: 1,
           }}>
-            <input placeholder="Search or create tag…" autoFocus style={{
-              border: "none", outline: "none", padding: "5px 7px", fontSize: 12,
-              fontFamily: "inherit", background: "transparent", color: "var(--ink-0)",
-              borderBottom: "1px solid var(--border-soft)", marginBottom: 4,
-            }} />
+            <input
+              value={tagQuery}
+              onChange={(e) => setTagQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canCreate) {
+                  e.preventDefault();
+                  handleCreate();
+                } else if (e.key === "Enter" && availableTags[0]) {
+                  e.preventDefault();
+                  onAddTag(star.id, availableTags[0].id);
+                  setTagQuery("");
+                  setShowTagMenu(false);
+                } else if (e.key === "Escape") {
+                  setShowTagMenu(false);
+                }
+              }}
+              placeholder="Search or create tag…"
+              autoFocus
+              style={{
+                border: "none", outline: "none", padding: "5px 7px", fontSize: 12,
+                fontFamily: "inherit", background: "transparent", color: "var(--ink-0)",
+                borderBottom: "1px solid var(--border-soft)", marginBottom: 4,
+              }}
+            />
             {availableTags.slice(0, 8).map((t) => (
-              <button key={t.id} onClick={() => { onAddTag(star.id, t.id); setShowTagMenu(false); }} style={{
+              <button key={t.id} onClick={() => { onAddTag(star.id, t.id); setTagQuery(""); setShowTagMenu(false); }} style={{
                 display: "flex", alignItems: "center", gap: 7, padding: "5px 7px",
                 border: "none", background: "transparent", borderRadius: 4,
                 fontSize: 12, color: "var(--ink-1)", cursor: "pointer", textAlign: "left",
@@ -290,6 +331,29 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
                 {t.name}
               </button>
             ))}
+            {canCreate && (
+              <button
+                onClick={handleCreate}
+                disabled={createMut.isPending || attachMut.isPending}
+                style={{
+                  display: "flex", alignItems: "center", gap: 7, padding: "6px 7px",
+                  border: "none", background: "var(--accent-soft)", borderRadius: 4,
+                  fontSize: 12, color: "var(--accent)", cursor: "pointer", textAlign: "left",
+                  fontFamily: "inherit", marginTop: 2,
+                }}
+              >
+                <Icon name="plus" size={11} />
+                <span>Create <b>"{tagQuery.trim()}"</b></span>
+                <span style={{ marginLeft: "auto", fontSize: 10.5, opacity: 0.7 }}>
+                  {createMut.isPending || attachMut.isPending ? "…" : "↵"}
+                </span>
+              </button>
+            )}
+            {availableTags.length === 0 && !canCreate && (
+              <div style={{ padding: "6px 8px", fontSize: 11.5, color: "var(--ink-3)" }}>
+                {allTags.length === 0 ? "No tags yet — type to create one." : "No matching tags."}
+              </div>
+            )}
           </div>
         )}
       </div>
