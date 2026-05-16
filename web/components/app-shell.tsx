@@ -4,6 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Star, User } from "@/lib/types";
 import { NOTIFICATIONS, STARS } from "@/lib/mock-data";
+import {
+  HttpError,
+  useAttachTag,
+  useDetachTag,
+  useEventLogger,
+  useMe,
+  usePatchStar,
+  useStars,
+  useSyncMutation,
+  useSyncStatus,
+} from "@/lib/queries";
 import { Sidebar } from "./sidebar";
 import { DetailPanel } from "./detail";
 import { InboxScreen } from "./screens/inbox-screen";
@@ -31,7 +42,34 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
   const pathname = usePathname();
   const winW = useWindowWidth();
   const isNarrow = winW < 1100;
+  const log = useEventLogger();
 
+  // ---- Live data --------------------------------------------------------
+  const meQ = useMe();
+  const starsQ = useStars();
+  const syncStatusQ = useSyncStatus(true);
+  const syncMut = useSyncMutation();
+  const patchMut = usePatchStar();
+  const attachMut = useAttachTag();
+  const detachMut = useDetachTag();
+
+  // Auth gate: 401 → bounce to landing.
+  useEffect(() => {
+    if (meQ.error instanceof HttpError && meQ.error.status === 401) {
+      router.replace("/");
+    }
+  }, [meQ.error, router]);
+
+  // If the user has never run initial sync, send them through Welcome.
+  useEffect(() => {
+    if (meQ.data?.user && meQ.data.sync && !meQ.data.sync.initial_sync_completed) {
+      router.replace("/welcome");
+    }
+  }, [meQ.data, router]);
+
+  const authed = !!meQ.data?.user;
+
+  // ---- Route --------------------------------------------------------------
   const [route, setRouteState] = useState<Route>(initialRoute);
   const setRoute = useCallback((r: string) => {
     if ((ROUTES as readonly string[]).includes(r)) {
@@ -47,11 +85,19 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     }
   }, [pathname]);
 
+  // ---- Stars (live OR demo fallback) -------------------------------------
+  const liveStars = starsQ.data;
+  // When unauthenticated, render the demo data so screens never look empty.
+  // Once authenticated, only show real data (even if empty).
+  const stars: Star[] = useMemo(() => {
+    if (liveStars) return liveStars;
+    if (!authed && !meQ.isLoading) return STARS;
+    return [];
+  }, [liveStars, authed, meQ.isLoading]);
+
   const [smartInbox, setSmartInbox] = useState<string | null>(null);
-  const [stars, setStars] = useState<Star[]>(() => STARS.map((s) => ({ ...s })));
-  const [selectedId, setSelectedId] = useState<number | undefined>(stars.find((s) => s.status === "inbox")?.id);
+  const [selectedId, setSelectedId] = useState<number | undefined>();
   const [detailOpen, setDetailOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -61,12 +107,33 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     typeof window !== "undefined" && (localStorage.getItem("starbase-theme") as any) === "dark" ? "dark" : "light"
   );
   const [notifications, setNotifications] = useState(NOTIFICATIONS.map((n) => ({ ...n })));
-  const [user, setUser] = useState<User>({
-    username: "alex",
-    email: "alex@gmail.com",
-    lastSync: "2026-05-14T18:42:00Z",
-    lastReconcile: "2026-05-10T08:30:00Z",
-  });
+
+  // Auto-select the first inbox star when data first arrives.
+  useEffect(() => {
+    if (selectedId == null && stars.length > 0) {
+      const first = stars.find((s) => s.status === "inbox") || stars[0];
+      setSelectedId(first.id);
+    }
+  }, [stars, selectedId]);
+
+  // Derived user view for sidebar / settings.
+  const user: User = useMemo(() => {
+    if (meQ.data?.user) {
+      return {
+        username: meQ.data.user.username,
+        email: "",
+        avatarUrl: meQ.data.user.avatar_url,
+        lastSync: meQ.data.sync?.last_incremental_synced_at,
+        lastReconcile: meQ.data.sync?.last_full_reconciled_at,
+      };
+    }
+    return {
+      username: "demo",
+      email: "demo@starbase.local",
+      lastSync: "2026-05-14T18:42:00Z",
+      lastReconcile: "2026-05-10T08:30:00Z",
+    };
+  }, [meQ.data]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -85,29 +152,63 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
 
   const visibleStars = route === "inbox" ? stars.filter((s) => s.status === "inbox") : stars;
 
-  const setStatus = useCallback((id: number, status: Star["status"]) => {
-    setStars((arr) => arr.map((s) => s.id === id ? { ...s, status, lastReviewedAt: new Date().toISOString() } : s));
-  }, []);
-  const addTag = (id: number, tagId: number) =>
-    setStars((a) => a.map((s) => s.id === id ? { ...s, tags: s.tags.includes(tagId) ? s.tags : [...s.tags, tagId] } : s));
-  const removeTag = (id: number, tagId: number) =>
-    setStars((a) => a.map((s) => s.id === id ? { ...s, tags: s.tags.filter((t) => t !== tagId) } : s));
-  const saveNote = (id: number, note: string) =>
-    setStars((a) => a.map((s) => s.id === id ? { ...s, note } : s));
-  const toggleWatch = (id: number) =>
-    setStars((a) => a.map((s) => s.id === id ? { ...s, watching: !s.watching } : s));
+  // ---- Mutations: real when authed, local-state fallback in demo mode ----
+  const [demoOverrides, setDemoOverrides] = useState<Record<number, Partial<Star>>>({});
+  const stars2 = useMemo(() => {
+    if (!authed) {
+      const overlay = Object.keys(demoOverrides).length;
+      if (!overlay) return stars;
+      return stars.map((s) => (demoOverrides[s.id] ? { ...s, ...demoOverrides[s.id] } : s));
+    }
+    return stars;
+  }, [stars, demoOverrides, authed]);
+
+  const applyDemo = (id: number, patch: Partial<Star>) =>
+    setDemoOverrides((m) => ({ ...m, [id]: { ...(m[id] || {}), ...patch } }));
+
+  const setStatus = useCallback(
+    (id: number, status: Star["status"]) => {
+      log("status_changed", { star_id: id, to: status });
+      if (authed) {
+        patchMut.mutate({ id, body: { status } });
+      } else {
+        applyDemo(id, { status, lastReviewedAt: new Date().toISOString() });
+      }
+    },
+    [authed, patchMut, log]
+  );
+
+  const addTag = (id: number, tagId: number) => {
+    log("tag_applied", { star_id: id, tag_id: tagId });
+    if (authed) attachMut.mutate({ starId: id, tagId });
+    else applyDemo(id, { tags: Array.from(new Set([...(stars2.find((s) => s.id === id)?.tags || []), tagId])) });
+  };
+  const removeTag = (id: number, tagId: number) => {
+    if (authed) detachMut.mutate({ starId: id, tagId });
+    else applyDemo(id, { tags: (stars2.find((s) => s.id === id)?.tags || []).filter((t) => t !== tagId) });
+  };
+  const saveNote = (id: number, note: string) => {
+    log("note_saved", { star_id: id, length: note.length });
+    if (authed) patchMut.mutate({ id, body: { note } });
+    else applyDemo(id, { note });
+  };
+  const toggleWatch = (id: number) => {
+    const current = stars2.find((s) => s.id === id)?.watching;
+    if (authed) patchMut.mutate({ id, body: { watching: !current } });
+    else applyDemo(id, { watching: !current });
+  };
 
   const markNotification = (id: number | "all") => {
     if (id === "all") setNotifications((ns) => ns.map((n) => ({ ...n, unread: false })));
     else setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, unread: false } : n)));
   };
 
+  const job = syncStatusQ.data?.job;
+  const syncing = !!(job && (job.status === "pending" || job.status === "running")) || syncMut.isPending;
+
   const onSync = () => {
-    setSyncing(true);
-    setTimeout(() => {
-      setSyncing(false);
-      setUser((u) => ({ ...u, lastSync: new Date().toISOString() }));
-    }, 1400);
+    log("sync_incremental_started");
+    if (authed) syncMut.mutate("incremental");
   };
 
   useEffect(() => {
@@ -167,12 +268,16 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     return () => window.removeEventListener("keydown", handle);
   }, [selectedId, visibleStars, showShortcuts, setStatus, setRoute]);
 
-  const selected = stars.find((s) => s.id === selectedId);
+  const selected = stars2.find((s) => s.id === selectedId);
 
   const openStar = (id: number) => {
     setSelectedId(id);
     setDetailOpen(true);
     if (route === "settings") setRoute("inbox");
+    if (authed) {
+      // fire-and-forget view marker
+      import("@/lib/api").then(({ api }) => api.view(id).catch(() => {}));
+    }
   };
 
   return (
@@ -184,6 +289,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
         setSmartInbox={setSmartInbox}
         counts={counts}
         user={user}
+        stars={stars2}
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenPalette={() => setShowPalette(true)}
@@ -197,7 +303,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
           borderRight: !isNarrow && detailOpen && (route === "inbox" || route === "stars") ? "1px solid var(--border)" : "none",
         }}>
           {route === "inbox" && (
-            <InboxScreen stars={stars}
+            <InboxScreen stars={stars2}
               selectedId={selectedId} setSelectedId={setSelectedId}
               onOpen={(id) => { setSelectedId(id); setDetailOpen(true); }}
               onSetStatus={setStatus} onAddTag={addTag} counts={counts}
@@ -211,7 +317,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
             />
           )}
           {route === "stars" && (
-            <StarsScreen stars={stars}
+            <StarsScreen stars={stars2}
               selectedId={selectedId} setSelectedId={setSelectedId}
               onOpen={(id) => { setSelectedId(id); setDetailOpen(true); }}
               onSync={onSync} syncing={syncing}
@@ -224,7 +330,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
             />
           )}
           {route === "review" && (
-            <ReviewScreen stars={stars}
+            <ReviewScreen stars={stars2}
               onOpen={(id) => { setSelectedId(id); setRoute("inbox"); setDetailOpen(true); }}
               onSync={onSync} syncing={syncing}
             />
@@ -248,7 +354,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
                 width: "min(460px, 92%)", boxShadow: "-12px 0 32px rgba(0,0,0,0.12)",
                 borderLeft: "1px solid var(--border)",
               }}>
-                <DetailPanel star={selected} allStars={stars}
+                <DetailPanel star={selected} allStars={stars2}
                   onChangeStatus={setStatus}
                   onAddTag={addTag} onRemoveTag={removeTag}
                   onSaveNote={saveNote}
@@ -259,7 +365,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
             </>
           ) : (
             <div style={{ flex: "1 1 40%", minWidth: 380, maxWidth: 540 }}>
-              <DetailPanel star={selected} allStars={stars}
+              <DetailPanel star={selected} allStars={stars2}
                 onChangeStatus={setStatus}
                 onAddTag={addTag} onRemoveTag={removeTag}
                 onSaveNote={saveNote}
@@ -273,7 +379,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
 
       {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       {showPalette && (
-        <CommandPalette stars={stars}
+        <CommandPalette stars={stars2}
           onClose={() => setShowPalette(false)}
           onGoto={(r) => { setRoute(r); setSmartInbox(null); }}
           onOpenStar={openStar}
@@ -286,10 +392,10 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
           onDigest={() => setShowDigest(true)} />
       )}
       {showExport && (
-        <ExportDialog stars={stars} onClose={() => setShowExport(false)} />
+        <ExportDialog stars={stars2} onClose={() => setShowExport(false)} />
       )}
       {showDigest && (
-        <WeeklyDigest stars={stars} onClose={() => setShowDigest(false)} onOpenStar={openStar} />
+        <WeeklyDigest stars={stars2} onClose={() => setShowDigest(false)} onOpenStar={openStar} />
       )}
     </div>
   );

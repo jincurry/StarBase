@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { Star } from "@/lib/types";
 import { Icon } from "./icons";
 import { Kbd, STATUSES, StatusPill, TAG_COLOR } from "./primitives";
-import { TAGS, tagById } from "@/lib/mock-data";
+import { useTagsCtx } from "./providers";
 
 const labelStyle: CSSProperties = {
   fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)",
@@ -87,6 +87,7 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
 export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () => void }) {
   const [format, setFormat] = useState<"markdown" | "json" | "opml">("markdown");
   const [scope, setScope] = useState<"all" | "kept" | "with-notes" | "inbox">("kept");
+  const { tagById } = useTagsCtx();
 
   const counts = {
     all: stars.length,
@@ -380,6 +381,7 @@ export function BulkActionBar({
   onAddTag: (tagId: number) => void;
 }) {
   const [showTag, setShowTag] = useState(false);
+  const { tags: allTags } = useTagsCtx();
   return (
     <div style={{
       position: "absolute", left: "50%", bottom: 16, transform: "translateX(-50%)", zIndex: 25,
@@ -407,7 +409,7 @@ export function BulkActionBar({
             boxShadow: "var(--shadow-md)",
             display: "flex", flexDirection: "column", gap: 1,
           }}>
-            {TAGS.slice(0, 8).map((t) => (
+            {allTags.slice(0, 8).map((t) => (
               <button key={t.id} onClick={() => { onAddTag(t.id); setShowTag(false); }} style={{
                 display: "flex", alignItems: "center", gap: 7, padding: "5px 8px",
                 border: "none", background: "transparent", borderRadius: 4,

@@ -7,7 +7,8 @@ import { Icon } from "../icons";
 import { Kbd, STATUSES, TAG_COLOR } from "../primitives";
 import { StarRow } from "../star-row";
 import { Select, Toggle } from "../select-toggle";
-import { LANGUAGE_COLOR, SMART_INBOXES, TAGS, getReadme, tagById } from "@/lib/mock-data";
+import { LANGUAGE_COLOR, SMART_INBOXES, getReadme } from "@/lib/mock-data";
+import { useTagsCtx } from "../providers";
 
 interface Props {
   stars: Star[];
@@ -34,6 +35,7 @@ export function StarsScreen({
     hasNote: false, searchReadme: false,
   });
   const [sort, setSort] = useState("starred-desc");
+  const { tags: TAGS, tagById } = useTagsCtx();
 
   const smartFilter = useMemo(() => {
     if (!smartInbox) return null;

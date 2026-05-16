@@ -7,29 +7,48 @@ import { primaryBtn } from "../primitives";
 interface Props {
   onContinue: () => void;
   onStartSync?: (inboxCount: number) => Promise<void> | void;
+  /** When provided, the screen renders this progress instead of running its own fake timer. */
+  liveProgress?: number;
+  liveStage?: string;
+  liveDone?: boolean;
 }
 
-export function WelcomeScreen({ onContinue, onStartSync }: Props) {
-  const [step, setStep] = useState(0);
-  const [choice, setChoice] = useState(30);
-  const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState("");
+const FAKE_STAGES = [
+  "Fetching starred repos…",
+  "Hydrating metadata…",
+  "Building search index…",
+  "Almost done…",
+];
 
+export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage, liveDone }: Props) {
+  const [step, setStep] = useState(0); // 0 choose · 2 syncing · 3 done
+  const [choice, setChoice] = useState(30);
+  const [fakeProgress, setFakeProgress] = useState(0);
+  const [fakeStage, setFakeStage] = useState("");
+
+  // If no liveProgress is supplied, fall back to the prototype's fake timer.
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 || liveProgress != null) return;
     let p = 0;
-    const stages = ["Fetching starred repos…", "Hydrating metadata…", "Building search index…", "Almost done…"];
     const t = setInterval(() => {
       p += Math.random() * 7 + 3;
-      setProgress(Math.min(p, 100));
-      setStage(stages[Math.min(Math.floor(p / 25), 3)]);
+      setFakeProgress(Math.min(p, 100));
+      setFakeStage(FAKE_STAGES[Math.min(Math.floor(p / 25), 3)]);
       if (p >= 100) {
         clearInterval(t);
         setTimeout(() => setStep(3), 400);
       }
     }, 110);
     return () => clearInterval(t);
-  }, [step]);
+  }, [step, liveProgress]);
+
+  // When live progress completes, advance to step 3.
+  useEffect(() => {
+    if (step === 2 && liveDone) setStep(3);
+  }, [step, liveDone]);
+
+  const progress = liveProgress ?? fakeProgress;
+  const stage = liveStage ?? fakeStage;
 
   const choices = [
     { v: 10, t: "Just the latest 10", h: "Stay light. Process what's fresh.", rec: false },

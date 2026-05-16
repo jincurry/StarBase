@@ -6,6 +6,7 @@ import { Topbar } from "../topbar";
 import { primaryBtn, secondaryBtn } from "../primitives";
 import { Toggle } from "../select-toggle";
 import { fmtRelative } from "@/lib/mock-data";
+import { useSyncMutation } from "@/lib/queries";
 
 interface Props {
   user: User;
@@ -61,6 +62,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 }
 
 export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: Props) {
+  const reconcile = useSyncMutation();
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Topbar title="Settings" />
@@ -109,7 +111,11 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
             <button style={primaryBtn} onClick={onSync} disabled={syncing}>
               {syncing ? "Syncing…" : "Sync new stars"}
             </button>
-            <button style={secondaryBtn}>Reconcile (full)</button>
+            <button style={secondaryBtn}
+              onClick={() => reconcile.mutate("reconcile")}
+              disabled={reconcile.isPending}>
+              {reconcile.isPending ? "Queuing…" : "Reconcile (full)"}
+            </button>
           </div>
           <div style={{ marginTop: 14, padding: 10, background: "var(--surface-1)", borderRadius: 6, border: "1px solid var(--border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-2)" }}>

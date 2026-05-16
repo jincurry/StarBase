@@ -3,8 +3,9 @@
 import type { CSSProperties } from "react";
 import { Icon, MoonIcon, SunIcon } from "./icons";
 import { TAG_COLOR, miniBtn } from "./primitives";
-import { SMART_INBOXES, STARS, TAGS, fmtRelative } from "@/lib/mock-data";
-import type { User } from "@/lib/types";
+import { SMART_INBOXES, fmtRelative } from "@/lib/mock-data";
+import type { Star, User } from "@/lib/types";
+import { useTagsCtx } from "./providers";
 
 interface SidebarProps {
   route: string;
@@ -13,6 +14,7 @@ interface SidebarProps {
   setSmartInbox: (s: string | null) => void;
   counts: { inbox: number; review: number; total: number };
   user: User;
+  stars: Star[];
   theme: "light" | "dark";
   onToggleTheme: () => void;
   onOpenPalette: () => void;
@@ -43,9 +45,10 @@ function SidebarSection({ label }: { label: string }) {
 }
 
 export function Sidebar({
-  route, setRoute, smartInbox, setSmartInbox, counts, user,
+  route, setRoute, smartInbox, setSmartInbox, counts, user, stars,
   theme, onToggleTheme, onOpenPalette, onExport,
 }: SidebarProps) {
+  const { tags: TAGS } = useTagsCtx();
   const items = [
     { id: "inbox", label: "Inbox", icon: "inbox" as const, count: counts.inbox, badge: null as string | null },
     { id: "review", label: "Review", icon: "review" as const, count: counts.review, badge: counts.review > 0 ? "•" : null },
@@ -97,7 +100,7 @@ export function Sidebar({
       <nav style={{ padding: "0 8px", display: "flex", flexDirection: "column", gap: 1 }}>
         {SMART_INBOXES.map((si) => {
           const active = smartInbox === si.id;
-          const count = STARS.filter(si.filter).length;
+          const count = stars.filter(si.filter).length;
           if (count === 0) return null;
           return (
             <button key={si.id} onClick={() => { setRoute("stars"); setSmartInbox(si.id); }} style={navBtn(active)}>
@@ -114,7 +117,7 @@ export function Sidebar({
       <SidebarSection label="Tags" />
       <div style={{ padding: "0 8px", display: "flex", flexDirection: "column", gap: 1, overflow: "auto", flex: 1 }}>
         {TAGS.slice(0, 7).map((tag) => {
-          const count = STARS.filter((s) => s.tags.includes(tag.id) && s.status !== "archived").length;
+          const count = stars.filter((s) => s.tags.includes(tag.id) && s.status !== "archived").length;
           if (count === 0) return null;
           const id = "tag:" + tag.id;
           return (

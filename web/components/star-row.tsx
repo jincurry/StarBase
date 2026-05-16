@@ -1,9 +1,10 @@
 "use client";
 
 import type { Star } from "@/lib/types";
-import { fmtNumber, fmtRelative, tagById } from "@/lib/mock-data";
+import { fmtNumber, fmtRelative } from "@/lib/mock-data";
 import { Icon } from "./icons";
 import { LangDot, STATUSES, TagChip } from "./primitives";
+import { useTagsCtx } from "./providers";
 
 interface StarRowProps {
   star: Star;
@@ -21,6 +22,7 @@ export function StarRow({
   selectable, checked, onToggleCheck,
 }: StarRowProps) {
   const isCompact = density === "compact";
+  const { tagById } = useTagsCtx();
   const tags = star.tags.map((t) => tagById(t)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
   const tight = typeof window !== "undefined" && window.innerWidth < 1100;
   return (

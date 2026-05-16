@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import type { Star } from "@/lib/types";
 import { Topbar } from "../topbar";
 import { Icon } from "../icons";
 import { LangDot, StatusPill } from "../primitives";
 import { fmtNumber, fmtRelative } from "@/lib/mock-data";
+import { useReview } from "@/lib/queries";
 
 interface Props {
   stars: Star[];
@@ -14,17 +16,31 @@ interface Props {
 }
 
 export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
-  const now = new Date("2026-05-09T12:00:00Z").getTime();
-  const recently = stars.filter((s) => (now - +new Date(s.starredAt)) / 86400000 < 7 && s.status !== "archived");
-  const stale = stars.filter((s) => s.status === "inbox" && (now - +new Date(s.starredAt)) / 86400000 > 14);
-  const rediscover = stars
-    .filter((s) => s.status === "kept" || s.status === "archived")
-    .sort((a, b) => {
-      const ar = a.lastReviewedAt ? +new Date(a.lastReviewedAt) : 0;
-      const br = b.lastReviewedAt ? +new Date(b.lastReviewedAt) : 0;
-      return ar - br;
-    })
-    .slice(0, 5);
+  // Prefer server-computed buckets; fall back to client-side derivation
+  // when the API hasn't returned yet (or in demo mode).
+  const review = useReview();
+  const { recently, stale, rediscover } = useMemo(() => {
+    if (review.data) {
+      return {
+        recently: review.data.recently,
+        stale: review.data.stale_inbox,
+        rediscover: review.data.rediscover,
+      };
+    }
+    const now = Date.now();
+    return {
+      recently: stars.filter((s) => (now - +new Date(s.starredAt)) / 86400000 < 7 && s.status !== "archived"),
+      stale: stars.filter((s) => s.status === "inbox" && (now - +new Date(s.starredAt)) / 86400000 > 14),
+      rediscover: stars
+        .filter((s) => s.status === "kept" || s.status === "archived")
+        .sort((a, b) => {
+          const ar = a.lastReviewedAt ? +new Date(a.lastReviewedAt) : 0;
+          const br = b.lastReviewedAt ? +new Date(b.lastReviewedAt) : 0;
+          return ar - br;
+        })
+        .slice(0, 5),
+    };
+  }, [review.data, stars]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>

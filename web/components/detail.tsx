@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Star } from "@/lib/types";
-import { TAGS, fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory, tagById } from "@/lib/mock-data";
+import { fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory } from "@/lib/mock-data";
 import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
+import { useTagsCtx } from "./providers";
 
 interface DetailPanelProps {
   star?: Star;
@@ -214,8 +215,9 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
   onRemoveTag: (id: number, tagId: number) => void;
   onOpenStar?: (id: number) => void;
 }) {
+  const { tags: allTags, tagById } = useTagsCtx();
   const tags = star.tags.map((t) => tagById(t)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
-  const availableTags = TAGS.filter((t) => !star.tags.includes(t.id));
+  const availableTags = allTags.filter((t) => !star.tags.includes(t.id));
   const [showTagMenu, setShowTagMenu] = useState(false);
   const history = getStarHistory(star);
 
@@ -481,6 +483,7 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
 
 function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
   const { commits, releases } = getActivity(star);
+  const { tagById } = useTagsCtx();
   return (
     <div style={{ padding: "14px 18px 22px" }}>
       <SectionLabel>Recent releases</SectionLabel>

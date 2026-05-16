@@ -7,6 +7,7 @@ import { Icon } from "../icons";
 import { Kbd, ghostBtn, primaryBtn, secondaryBtn } from "../primitives";
 import { StarRow } from "../star-row";
 import { BulkActionBar, DigestBanner } from "../dialogs";
+import { useStats } from "@/lib/queries";
 
 interface Props {
   stars: Star[];
@@ -69,6 +70,7 @@ export function InboxScreen({
   onOpenDigest, digestVisible, onDismissDigest,
 }: Props) {
   const inboxStars = stars.filter((s) => s.status === "inbox");
+  const statsQ = useStats();
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const lastCheckedRef = useRef<number | null>(null);
 
@@ -125,8 +127,8 @@ export function InboxScreen({
         onOpenPalette={onOpenPalette}
         right={
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginRight: 4 }}>
-            <Stat label="processed today" value="6" tone="accent" />
-            <Stat label="this week" value="23" />
+            <Stat label="kept" value={String(statsQ.data?.kept ?? "—")} tone="accent" />
+            <Stat label="this week" value={String(statsQ.data?.this_week ?? "—")} />
           </div>
         }
       />
