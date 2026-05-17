@@ -174,6 +174,7 @@ export const api = {
   patchStar: (id: number, body: { status?: string; note?: string; watching?: boolean }) =>
     http<ApiStar>(`/api/stars/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   view: (id: number) => http<void>(`/api/stars/${id}/view`, { method: "POST" }),
+  readme: (id: number) => http<{ content: string }>(`/api/stars/${id}/readme`),
 
   // tags
   listTags: () => http<{ items: ApiTag[] }>("/api/tags"),

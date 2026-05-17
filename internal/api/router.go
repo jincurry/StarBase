@@ -64,6 +64,7 @@ func New(d Deps) *gin.Engine {
 		authed.GET("/stars/:id", starH.Get)
 		authed.PATCH("/stars/:id", starH.Patch)
 		authed.POST("/stars/:id/view", starH.View)
+		authed.GET("/stars/:id/readme", starH.Readme)
 		authed.POST("/stars/:id/tags", tagH.Attach)
 		authed.DELETE("/stars/:id/tags/:tagId", tagH.Detach)
 

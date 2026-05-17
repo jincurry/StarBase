@@ -355,6 +355,32 @@ func (s *StarService) Stats(ctx context.Context, userID int64) (*Stats, error) {
 	return out, nil
 }
 
+// Readme returns the rendered README content for a starred repo. Falls
+// back to an empty string if GitHub returns 404 (rare — repo without one).
+func (s *StarService) Readme(ctx context.Context, userID, starID int64) (string, error) {
+	var fullName string
+	err := s.db.QueryRow(ctx, `
+		SELECT r.full_name
+		FROM user_starred_repos usr JOIN repos r ON r.id = usr.repo_id
+		WHERE usr.id=$1 AND usr.user_id=$2
+	`, starID, userID).Scan(&fullName)
+	if err != nil {
+		return "", err
+	}
+	token, err := s.auth.AccessTokenFor(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	md, err := s.gh.GetReadme(ctx, token, fullName)
+	if err != nil {
+		if errors.Is(err, github.ErrNotFound) {
+			return "", nil
+		}
+		return "", err
+	}
+	return md, nil
+}
+
 // refreshMetadata pulls fresh repo info from GitHub and updates the repos row.
 func (s *StarService) refreshMetadata(ctx context.Context, userID int64, fullName string) {
 	if s.metaCache.seenRecently(fullName) {

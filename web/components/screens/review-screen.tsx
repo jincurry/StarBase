@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { Star } from "@/lib/types";
 import { Topbar } from "../topbar";
 import { Icon } from "../icons";
 import { LangDot, StatusPill } from "../primitives";
 import { fmtNumber, fmtRelative } from "@/lib/mock-data";
-import { useReview } from "@/lib/queries";
+import { useEventLogger, useReview } from "@/lib/queries";
 
 interface Props {
   stars: Star[];
@@ -19,6 +19,7 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
   // Prefer server-computed buckets; fall back to client-side derivation
   // when the API hasn't returned yet (or in demo mode).
   const review = useReview();
+  const log = useEventLogger();
   const { recently, stale, rediscover } = useMemo(() => {
     if (review.data) {
       return {
@@ -42,6 +43,28 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
     };
   }, [review.data, stars]);
 
+  useEffect(() => {
+    log("review_page_viewed", {
+      recently_count: recently.length,
+      stale_count: stale.length,
+      rediscover_count: rediscover.length,
+    });
+    // Fire once per mount; subsequent count changes are noise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openWithLog = (s: Star, section: "recently" | "stale" | "rediscover") => {
+    if (section === "rediscover") {
+      const days = s.lastReviewedAt
+        ? Math.round((Date.now() - +new Date(s.lastReviewedAt)) / 86400000)
+        : null;
+      log("rediscover_repo_opened", { star_id: s.id, days_since_last_review: days });
+    } else {
+      log("review_action_taken", { section, action: "open" });
+    }
+    onOpen(s.id);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Topbar title="Review" onSync={onSync} syncing={syncing}
@@ -50,15 +73,15 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
         <ReviewSection icon="sparkle" title="Recently starred"
           subtitle={`${recently.length} new this week — fresh for triage`}
           tone="oklch(60% 0.16 255)" tint="oklch(96% 0.04 255)"
-          stars={recently} onOpen={onOpen} />
+          stars={recently} onOpen={(id) => openWithLog(recently.find((s) => s.id === id)!, "recently")} />
         <ReviewSection icon="timer" title="Stale in your inbox"
           subtitle={`${stale.length} have been sitting for over 14 days`}
           tone="oklch(58% 0.13 60)" tint="oklch(97% 0.04 75)"
-          stars={stale} onOpen={onOpen} />
+          stars={stale} onOpen={(id) => openWithLog(stale.find((s) => s.id === id)!, "stale")} />
         <ReviewSection icon="review" title="Rediscover"
           subtitle="Repos you starred long ago — surfaced by least-recently-reviewed"
           tone="oklch(54% 0.14 295)" tint="oklch(96% 0.04 295)"
-          stars={rediscover} onOpen={onOpen} />
+          stars={rediscover} onOpen={(id) => openWithLog(rediscover.find((s) => s.id === id)!, "rediscover")} />
       </div>
     </div>
   );

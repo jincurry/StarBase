@@ -44,11 +44,11 @@ func main() {
 
 	gh := github.New(cfg.GitHubRatePerSec)
 	auth := service.NewAuth(cfg, pool, gh, aead)
-	syncSvc := service.NewSync(pool, gh, auth)
+	event := service.NewEvent(pool)
+	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)
 	star := service.NewStar(pool, gh, auth)
 	tag := service.NewTag(pool)
 	review := service.NewReview(pool, star)
-	event := service.NewEvent(pool)
 
 	r := api.New(api.Deps{
 		Cfg: cfg, Auth: auth, Sync: syncSvc, Star: star,

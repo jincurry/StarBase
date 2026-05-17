@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,13 @@ import (
 	"sync"
 	"time"
 )
+
+// base64Decode tolerates GitHub's line-wrapped output.
+func base64Decode(s string) ([]byte, error) {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return base64.StdEncoding.DecodeString(s)
+}
 
 var (
 	ErrUnauthorized = errors.New("github: unauthorized")
@@ -218,4 +226,30 @@ func (c *Client) GetRepo(ctx context.Context, token, fullName string) (*Repo, er
 		return nil, err
 	}
 	return &r, nil
+}
+
+// GetReadme fetches the rendered README for a repo. GitHub returns the
+// content base64-encoded; we decode and return it as a plain string.
+func (c *Client) GetReadme(ctx context.Context, token, fullName string) (string, error) {
+	res, err := c.do(ctx, token, http.MethodGet, "/repos/"+fullName+"/readme", nil)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	var payload struct {
+		Content  string `json:"content"`
+		Encoding string `json:"encoding"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	if payload.Encoding == "base64" {
+		// GitHub line-wraps the base64; the std decoder ignores whitespace.
+		b, err := base64Decode(payload.Content)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	}
+	return payload.Content, nil
 }

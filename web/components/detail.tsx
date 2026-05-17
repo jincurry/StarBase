@@ -6,7 +6,8 @@ import { fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory } from "
 import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
-import { useAttachTag, useCreateTag } from "@/lib/queries";
+import { useAttachTag, useCreateTag, useEventLogger, useReadme } from "@/lib/queries";
+import { Markdown } from "./markdown";
 
 interface DetailPanelProps {
   star?: Star;
@@ -222,6 +223,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
   const [tagQuery, setTagQuery] = useState("");
   const createMut = useCreateTag();
   const attachMut = useAttachTag();
+  const log = useEventLogger();
 
   const q = tagQuery.trim().toLowerCase();
   const availableTags = allTags
@@ -234,7 +236,9 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
     if (!canCreate) return;
     try {
       const tag = await createMut.mutateAsync({ name: tagQuery.trim() });
+      log("tag_created", { tag_id: tag.id });
       await attachMut.mutateAsync({ starId: star.id, tagId: tag.id });
+      log("tag_applied", { star_id: star.id, tag_id: tag.id, is_new_tag: true });
       setTagQuery("");
       setShowTagMenu(false);
     } catch {
@@ -419,7 +423,12 @@ function Sparkline({ values, w = 360, h = 40 }: { values: number[]; w?: number; 
 }
 
 function ReadmeTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
-  const readme = getReadme(star);
+  // Try the live README from GitHub first; if it fails (e.g. demo mode,
+  // no auth, repo with no README), fall back to the mock blocks.
+  const live = useReadme(star.id, true);
+  const liveContent = live.data?.content?.trim();
+  const mock = getReadme(star);
+
   return (
     <div>
       <div style={{
@@ -431,7 +440,9 @@ function ReadmeTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
         fontSize: 11.5, color: "var(--ink-3)",
       }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>README.md</span>
-        <span style={{ color: "var(--ink-3)" }}>· rendered preview</span>
+        <span style={{ color: "var(--ink-3)" }}>
+          · {liveContent ? "live from GitHub" : live.isLoading ? "loading…" : "preview"}
+        </span>
         <div style={{ flex: 1 }} />
         <a href={`${githubUrl}#readme`} target="_blank" rel="noreferrer" style={{
           display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px",
@@ -440,12 +451,18 @@ function ReadmeTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
         }}>View on GitHub <Icon name="extLink" size={10} /></a>
       </div>
       <div style={{ padding: "18px 22px 32px", maxWidth: 760 }}>
-        {readme.badges?.length > 0 && (
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
-            {readme.badges.map((b, i) => <Badge key={i}>{b}</Badge>)}
-          </div>
+        {liveContent ? (
+          <Markdown source={liveContent} />
+        ) : (
+          <>
+            {mock.badges?.length > 0 && (
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
+                {mock.badges.map((b, i) => <Badge key={i}>{b}</Badge>)}
+              </div>
+            )}
+            {mock.body.map((block, i) => <MdBlock key={i} block={block} />)}
+          </>
         )}
-        {readme.body.map((block, i) => <MdBlock key={i} block={block} />)}
       </div>
     </div>
   );
@@ -498,6 +515,7 @@ function MdBlock({ block }: { block: any }) {
 
 function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, note: string) => void }) {
   const [note, setNote] = useState(star.note || "");
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
   useEffect(() => { setNote(star.note || ""); }, [star.id]);
   const saved = note === (star.note || "");
   const insertTimestamp = () => {
@@ -510,33 +528,76 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
     <div style={{ padding: "14px 18px 22px", display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <SectionLabel inline>Your note</SectionLabel>
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex", borderRadius: 5, overflow: "hidden",
+            border: "1px solid var(--border)", marginLeft: 8,
+          }}
+        >
+          {(["edit", "preview"] as const).map((m) => (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => {
+                if (m === "preview" && !saved) onSaveNote(star.id, note);
+                setMode(m);
+              }}
+              style={{
+                padding: "2px 10px", fontSize: 11, border: "none",
+                background: mode === m ? "var(--surface-2)" : "transparent",
+                color: mode === m ? "var(--ink-0)" : "var(--ink-2)",
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              {m === "edit" ? "Edit" : "Preview"}
+            </button>
+          ))}
+        </div>
         <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--ink-3)" }}>
           {wordCount} word{wordCount === 1 ? "" : "s"}
         </span>
-        <button onClick={insertTimestamp} style={{
-          background: "transparent", border: "1px solid var(--border)",
-          padding: "2px 8px", borderRadius: 4, fontSize: 11, color: "var(--ink-2)",
-          cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "inherit",
-        }}>
-          <Icon name="plus" size={10} /> timestamp
-        </button>
+        {mode === "edit" && (
+          <button onClick={insertTimestamp} style={{
+            background: "transparent", border: "1px solid var(--border)",
+            padding: "2px 8px", borderRadius: 4, fontSize: 11, color: "var(--ink-2)",
+            cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "inherit",
+          }}>
+            <Icon name="plus" size={10} /> timestamp
+          </button>
+        )}
         <span style={{ fontSize: 10.5, color: saved ? "var(--ink-3)" : "var(--accent)", minWidth: 50, textAlign: "right" }}>
           {saved ? "saved" : "•  unsaved"}
         </span>
       </div>
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        onBlur={() => onSaveNote(star.id, note)}
-        placeholder={`Why did you star this?\nWhat did you learn?\nWhat would you use it for?\n\n(Markdown supported. Notes are private and local to your account.)`}
-        style={{
-          flex: 1, minHeight: 260, padding: "12px 14px",
+      {mode === "edit" ? (
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          onBlur={() => onSaveNote(star.id, note)}
+          placeholder={`Why did you star this?\nWhat did you learn?\nWhat would you use it for?\n\n(Markdown supported. Notes are private and local to your account.)`}
+          style={{
+            flex: 1, minHeight: 260, padding: "12px 14px",
+            border: "1px solid var(--border)", borderRadius: 8,
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.7,
+            resize: "none", outline: "none", color: "var(--ink-0)",
+            background: "var(--surface-1)",
+          }}
+        />
+      ) : (
+        <div style={{
+          flex: 1, minHeight: 260, padding: "12px 16px",
           border: "1px solid var(--border)", borderRadius: 8,
-          fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, lineHeight: 1.7,
-          resize: "none", outline: "none", color: "var(--ink-0)",
-          background: "var(--surface-1)",
-        }}
-      />
+          background: "var(--surface-1)", overflow: "auto",
+        }}>
+          {note.trim() ? (
+            <Markdown source={note} />
+          ) : (
+            <div style={{ color: "var(--ink-3)", fontSize: 12.5 }}>Nothing to preview yet.</div>
+          )}
+        </div>
+      )}
       <div style={{ marginTop: 8, fontSize: 11, color: "var(--ink-3)", display: "flex", justifyContent: "space-between" }}>
         <span>Autosaves when you click out</span>
         <span>{star.lastReviewedAt ? `Last reviewed ${fmtRelative(star.lastReviewedAt)}` : "Never reviewed"}</span>

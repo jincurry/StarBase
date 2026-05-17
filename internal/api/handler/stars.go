@@ -115,6 +115,21 @@ func (h *StarsHandler) View(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *StarsHandler) Readme(c *gin.Context) {
+	u := c.MustGet(middleware.CtxUserKey).(*model.User)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": "bad id"})
+		return
+	}
+	md, err := h.star.Readme(c.Request.Context(), u.ID, id)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"code": "upstream_failed", "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"content": md})
+}
+
 func (h *StarsHandler) Stats(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	stats, err := h.star.Stats(c.Request.Context(), u.ID)

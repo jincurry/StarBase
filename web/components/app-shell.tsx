@@ -291,6 +291,8 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     setSelectedId(id);
     setDetailOpen(true);
     if (route === "settings") setRoute("inbox");
+    const pos = stars2.findIndex((s) => s.id === id);
+    log("inbox_repo_opened", { star_id: id, position: pos });
     if (authed) {
       // fire-and-forget view marker
       import("@/lib/api").then(({ api }) => api.view(id).catch(() => {}));

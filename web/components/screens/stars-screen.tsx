@@ -10,6 +10,7 @@ import { Select, Toggle } from "../select-toggle";
 import { BulkActionBar } from "../dialogs";
 import { LANGUAGE_COLOR, SMART_INBOXES, getReadme } from "@/lib/mock-data";
 import { useTagsCtx } from "../providers";
+import { useEventLogger } from "@/lib/queries";
 
 interface Props {
   stars: Star[];
@@ -44,6 +45,7 @@ export function StarsScreen({
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const lastCheckedRef = useRef<number | null>(null);
+  const log = useEventLogger();
 
   const smartFilter = useMemo(() => {
     if (!smartInbox) return null;
@@ -89,6 +91,26 @@ export function StarsScreen({
   }, [stars, filter, sort, smartFilter]);
 
   const languages = Array.from(new Set(stars.map((s) => s.language).filter(Boolean))).sort() as string[];
+
+  // Debounced search_used event — fires 800ms after the user stops typing.
+  useEffect(() => {
+    const q = filter.q.trim();
+    if (q.length < 2) return;
+    const t = setTimeout(() => {
+      const hasFilters =
+        filter.status !== "all" ||
+        filter.tag !== "all" ||
+        filter.language !== "all" ||
+        filter.hasNote ||
+        filter.searchReadme;
+      log("search_used", {
+        query_length: q.length,
+        has_filters: hasFilters,
+        result_count: filtered.length,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [filter, filtered.length, log]);
 
   // "/" to focus the local search; "Escape" clears bulk selection.
   useEffect(() => {

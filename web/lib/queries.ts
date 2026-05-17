@@ -48,6 +48,17 @@ export function useTags() {
   });
 }
 
+export function useReadme(starId: number | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["readme", starId],
+    queryFn: () => api.readme(starId!),
+    enabled: enabled && !!starId,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
 export function useReview() {
   return useQuery({
     queryKey: ["review"],

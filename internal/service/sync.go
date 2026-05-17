@@ -26,13 +26,28 @@ const (
 )
 
 type SyncService struct {
-	db   *pgxpool.Pool
-	gh   *github.Client
-	auth *AuthService
+	db    *pgxpool.Pool
+	gh    *github.Client
+	auth  *AuthService
+	event *EventService
 }
 
 func NewSync(db *pgxpool.Pool, gh *github.Client, auth *AuthService) *SyncService {
 	return &SyncService{db: db, gh: gh, auth: auth}
+}
+
+// WithEvents wires in the event service so sync jobs can emit analytics.
+// Optional — sync still works without it.
+func (s *SyncService) WithEvents(e *EventService) *SyncService {
+	s.event = e
+	return s
+}
+
+func (s *SyncService) emit(ctx context.Context, userID int64, name string, props map[string]any) {
+	if s.event == nil {
+		return
+	}
+	_ = s.event.Record(ctx, userID, name, props)
 }
 
 type InitialPayload struct {
@@ -174,6 +189,11 @@ func (s *SyncService) Run(ctx context.Context, job *model.SyncJob) error {
 // --- initial sync ------------------------------------------------------------
 
 func (s *SyncService) runInitial(ctx context.Context, job *model.SyncJob, token string, p InitialPayload) error {
+	started := time.Now()
+	s.emit(ctx, job.UserID, "sync_initial_started", map[string]any{
+		"inbox_count_choice": p.InboxCount,
+	})
+
 	// Collect entries; we need to know the global ordering to apply inbox/archived.
 	entries := make([]github.StarredEntry, 0, 128)
 	if err := s.gh.IterStarred(ctx, token, func(e github.StarredEntry) error {
@@ -184,20 +204,32 @@ func (s *SyncService) runInitial(ctx context.Context, job *model.SyncJob, token 
 		if errors.Is(err, github.ErrUnauthorized) {
 			s.auth.FlagTokenInvalid(ctx, job.UserID)
 		}
+		s.emit(ctx, job.UserID, "sync_failed", map[string]any{"job_type": "initial", "error": err.Error()})
 		return err
 	}
 	s.Progress(ctx, job.ID, 0, len(entries))
 
+	archived := 0
 	for i, e := range entries {
 		status := model.StatusArchived
 		if p.InboxCount < 0 || i < p.InboxCount {
 			status = model.StatusInbox
+		} else {
+			archived++
 		}
 		if err := s.upsertStar(ctx, job.UserID, e, status, true); err != nil {
+			s.emit(ctx, job.UserID, "sync_failed", map[string]any{"job_type": "initial", "error": err.Error()})
 			return err
 		}
 		s.Progress(ctx, job.ID, i+1, len(entries))
 	}
+
+	s.emit(ctx, job.UserID, "sync_initial_completed", map[string]any{
+		"total":          len(entries),
+		"duration_ms":    time.Since(started).Milliseconds(),
+		"inbox_count":    len(entries) - archived,
+		"archived_count": archived,
+	})
 
 	_, err := s.db.Exec(ctx, `
 		UPDATE user_sync_state
@@ -216,6 +248,7 @@ func (s *SyncService) runInitial(ctx context.Context, job *model.SyncJob, token 
 // --- incremental sync --------------------------------------------------------
 
 func (s *SyncService) runIncremental(ctx context.Context, job *model.SyncJob, token string) error {
+	s.emit(ctx, job.UserID, "sync_incremental_started", nil)
 	var since *time.Time
 	_ = s.db.QueryRow(ctx, `SELECT last_seen_starred_at FROM user_sync_state WHERE user_id=$1`, job.UserID).Scan(&since)
 	added := 0
@@ -234,8 +267,10 @@ func (s *SyncService) runIncremental(ctx context.Context, job *model.SyncJob, to
 		if errors.Is(err, github.ErrUnauthorized) {
 			s.auth.FlagTokenInvalid(ctx, job.UserID)
 		}
+		s.emit(ctx, job.UserID, "sync_failed", map[string]any{"job_type": "incremental", "error": err.Error()})
 		return err
 	}
+	s.emit(ctx, job.UserID, "sync_incremental_completed", map[string]any{"new_count": added})
 	_, err = s.db.Exec(ctx, `
 		UPDATE user_sync_state
 		   SET last_seen_starred_at     = COALESCE((SELECT MAX(starred_at) FROM user_starred_repos WHERE user_id=$1), last_seen_starred_at),
@@ -253,6 +288,7 @@ var errStopIter = errors.New("stop")
 // --- reconcile ---------------------------------------------------------------
 
 func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, token string) error {
+	s.emit(ctx, job.UserID, "sync_reconcile_started", nil)
 	seen := map[int64]bool{}
 	count := 0
 	err := s.gh.IterStarred(ctx, token, func(e github.StarredEntry) error {
@@ -268,6 +304,7 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 		if errors.Is(err, github.ErrUnauthorized) {
 			s.auth.FlagTokenInvalid(ctx, job.UserID)
 		}
+		s.emit(ctx, job.UserID, "sync_failed", map[string]any{"job_type": "reconcile", "error": err.Error()})
 		return err
 	}
 
@@ -305,6 +342,12 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 			return err
 		}
 	}
+	if len(unstarred) > 0 {
+		s.emit(ctx, job.UserID, "unstar_detected", map[string]any{"count": len(unstarred)})
+	}
+	s.emit(ctx, job.UserID, "sync_reconcile_completed", map[string]any{
+		"seen": count, "removed": len(unstarred),
+	})
 
 	_, err = s.db.Exec(ctx, `
 		UPDATE user_sync_state

@@ -40,7 +40,8 @@ func main() {
 	}
 	gh := github.New(cfg.GitHubRatePerSec)
 	auth := service.NewAuth(cfg, pool, gh, aead)
-	syncSvc := service.NewSync(pool, gh, auth)
+	event := service.NewEvent(pool)
+	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)
 
 	p := worker.New(syncSvc, cfg.WorkerConcurrency, log)
 	log.Info("worker pool running", "concurrency", cfg.WorkerConcurrency)
