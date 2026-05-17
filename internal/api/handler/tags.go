@@ -45,6 +45,25 @@ func (h *TagsHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, t)
 }
 
+func (h *TagsHandler) Update(c *gin.Context) {
+	u := c.MustGet(middleware.CtxUserKey).(*model.User)
+	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
+	var body struct {
+		Name  *string `json:"name"`
+		Color *string `json:"color"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		return
+	}
+	t, err := h.tag.Update(c.Request.Context(), u.ID, id, body.Name, body.Color)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, t)
+}
+
 func (h *TagsHandler) Delete(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)

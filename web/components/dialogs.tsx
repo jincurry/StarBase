@@ -6,6 +6,7 @@ import type { Star } from "@/lib/types";
 import { Icon } from "./icons";
 import { Kbd, STATUSES, StatusPill, TAG_COLOR } from "./primitives";
 import { useTagsCtx } from "./providers";
+import { useStats } from "@/lib/queries";
 
 const labelStyle: CSSProperties = {
   fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)",
@@ -277,13 +278,22 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
 
 // ============= WeeklyDigest =============
 
+function weekLabel() {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - 6);
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(start)} – ${fmt(now)}, ${now.getFullYear()}`;
+}
+
 export function WeeklyDigest({ stars, onClose, onOpenStar }: {
   stars: Star[]; onClose: () => void; onOpenStar: (id: number) => void;
 }) {
-  const week = "May 8 – May 14, 2026";
-  const triaged = 23;
-  const kept = stars.filter((s) => s.status === "kept").length;
-  const dropped = 4;
+  const week = weekLabel();
+  const statsQ = useStats();
+  const triaged = statsQ.data?.this_week ?? 0;
+  const kept = statsQ.data?.kept ?? stars.filter((s) => s.status === "kept").length;
+  const dropped = statsQ.data?.dropped ?? 0;
   const newlyStarred = stars.filter((s) => s.status === "inbox").slice(0, 3);
   const trending = stars.filter((s) => s.status === "kept").slice(0, 2);
 

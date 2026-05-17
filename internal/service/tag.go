@@ -58,6 +58,60 @@ func (s *TagService) Create(ctx context.Context, userID int64, name, color strin
 	return &t, nil
 }
 
+func (s *TagService) Update(ctx context.Context, userID, tagID int64, name, color *string) (*model.Tag, error) {
+	sets := []string{}
+	args := []any{tagID, userID}
+	idx := 3
+	if name != nil {
+		n := strings.TrimSpace(*name)
+		if n == "" {
+			return nil, errors.New("name required")
+		}
+		sets = append(sets, "name = $"+itoa(idx))
+		args = append(args, n)
+		idx++
+	}
+	if color != nil {
+		sets = append(sets, "color = NULLIF($"+itoa(idx)+", '')")
+		args = append(args, *color)
+		idx++
+	}
+	if len(sets) == 0 {
+		return nil, errors.New("nothing to update")
+	}
+	q := "UPDATE tags SET " + strings.Join(sets, ", ") + " WHERE id=$1 AND user_id=$2"
+	tag, err := s.db.Exec(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, errors.New("not found")
+	}
+	var t model.Tag
+	err = s.db.QueryRow(ctx, `
+		SELECT id, user_id, name, COALESCE(color,''), created_at
+		FROM tags WHERE id=$1 AND user_id=$2
+	`, tagID, userID).Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// itoa is a tiny no-allocation replacement for strconv just to keep imports lean.
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	buf := make([]byte, 0, 8)
+	x := n
+	for x > 0 {
+		buf = append([]byte{byte('0' + x%10)}, buf...)
+		x /= 10
+	}
+	return string(buf)
+}
+
 func (s *TagService) Delete(ctx context.Context, userID, tagID int64) error {
 	tag, err := s.db.Exec(ctx, `DELETE FROM tags WHERE id=$1 AND user_id=$2`, tagID, userID)
 	if err != nil {

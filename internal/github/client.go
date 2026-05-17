@@ -69,6 +69,36 @@ type Client struct {
 	rl    *limiter
 	base  string
 	agent string
+
+	// Cached rate-limit headers from the most recent response.
+	rateMu        sync.Mutex
+	rateLimit     int
+	rateRemaining int
+	rateReset     time.Time
+}
+
+// RateLimit returns the most recently observed GitHub rate-limit state.
+// Values are 0 until at least one request has been made.
+func (c *Client) RateLimit() (limit, remaining int, resetAt time.Time) {
+	c.rateMu.Lock()
+	defer c.rateMu.Unlock()
+	return c.rateLimit, c.rateRemaining, c.rateReset
+}
+
+func (c *Client) recordRate(h http.Header) {
+	lim, _ := strconv.Atoi(h.Get("X-RateLimit-Limit"))
+	rem, _ := strconv.Atoi(h.Get("X-RateLimit-Remaining"))
+	resetUnix, _ := strconv.ParseInt(h.Get("X-RateLimit-Reset"), 10, 64)
+	if lim == 0 && rem == 0 {
+		return
+	}
+	c.rateMu.Lock()
+	c.rateLimit = lim
+	c.rateRemaining = rem
+	if resetUnix > 0 {
+		c.rateReset = time.Unix(resetUnix, 0)
+	}
+	c.rateMu.Unlock()
 }
 
 type limiter struct {
@@ -132,6 +162,7 @@ func (c *Client) do(ctx context.Context, token, method, path string, params url.
 	if err != nil {
 		return nil, err
 	}
+	c.recordRate(res.Header)
 	switch res.StatusCode {
 	case http.StatusUnauthorized:
 		res.Body.Close()

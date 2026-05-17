@@ -37,6 +37,11 @@ func (p *Pool) Run(ctx context.Context) error {
 	return nil
 }
 
+// JobTimeout caps how long a single job is allowed to run before its
+// context is cancelled. Long enough for a full initial sync of a normal
+// power user, short enough that a graceful shutdown completes promptly.
+const JobTimeout = 15 * time.Minute
+
 func (p *Pool) loop(ctx context.Context, id int) {
 	backoff := time.Second
 	for {
@@ -54,7 +59,12 @@ func (p *Pool) loop(ctx context.Context, id int) {
 			continue
 		}
 		p.log.Info("running job", "worker", id, "id", job.ID, "type", job.JobType, "user", job.UserID, "attempt", job.Attempts)
-		runErr := p.sync.Run(ctx, job)
+
+		// Per-job context with timeout + parent cancellation chained
+		// in so shutdown still preempts us.
+		jobCtx, cancel := context.WithTimeout(ctx, JobTimeout)
+		runErr := p.sync.Run(jobCtx, job)
+		cancel()
 		if runErr == nil {
 			if err := p.sync.Finish(ctx, job.ID, service.JobDone, ""); err != nil {
 				p.log.Error("finish job", "id", job.ID, "err", err)

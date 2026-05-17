@@ -50,10 +50,14 @@ func main() {
 	tag := service.NewTag(pool)
 	review := service.NewReview(pool, star)
 	ai := service.NewAI(pool, gh, auth, cfg.AnthropicAPIKey, cfg.AnthropicModel)
+	prefs := service.NewPreferences(pool)
+	notif := service.NewNotifications(pool)
+	account := service.NewAccount(pool)
 
 	r := api.New(api.Deps{
-		Cfg: cfg, Auth: auth, Sync: syncSvc, Star: star,
+		Cfg: cfg, GH: gh, Auth: auth, Sync: syncSvc, Star: star,
 		Tag: tag, Review: review, Event: event, AI: ai,
+		Prefs: prefs, Notif: notif, Account: account,
 	})
 
 	srv := &http.Server{

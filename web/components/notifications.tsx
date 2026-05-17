@@ -4,14 +4,40 @@ import { useEffect, useRef, useState } from "react";
 import type { Notification } from "@/lib/types";
 import { BellIcon, Icon } from "./icons";
 import { fmtRelative } from "@/lib/mock-data";
+import { useMarkNotificationRead, useNotifications } from "@/lib/queries";
 
 interface Props {
+  // Optional fallback — used in demo mode when /api/notifications can't
+  // be reached. Authed sessions ignore this in favour of live data.
   notifications: Notification[];
   onMark: (id: number | "all") => void;
   onOpenStar: (id: number) => void;
 }
 
-export function NotificationsButton({ notifications, onMark, onOpenStar }: Props) {
+export function NotificationsButton({ notifications: fallback, onMark, onOpenStar }: Props) {
+  const live = useNotifications();
+  const markMut = useMarkNotificationRead();
+
+  const items: Notification[] = live.data
+    ? live.data.items.map((n) => ({
+        id: n.id,
+        type: n.kind === "release" ? "release" : "stale",
+        starId: n.star_id,
+        tag: n.tag,
+        title: n.title,
+        body: n.body || "",
+        when: n.created_at,
+        unread: n.unread,
+      }))
+    : fallback;
+  const onMarkLive = (id: number | "all") => {
+    if (live.data) markMut.mutate(id);
+    else onMark(id);
+  };
+  return <NotificationsDropdown notifications={items} onMark={onMarkLive} onOpenStar={onOpenStar} />;
+}
+
+function NotificationsDropdown({ notifications, onMark, onOpenStar }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

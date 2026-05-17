@@ -18,23 +18,27 @@ import (
 // Both kick off using the same sync_jobs queue, so multiple workers across
 // processes still get exactly-once semantics via FOR UPDATE SKIP LOCKED.
 type Scheduler struct {
-	db   *pgxpool.Pool
-	sync *service.SyncService
-	log  *slog.Logger
+	db     *pgxpool.Pool
+	sync   *service.SyncService
+	notif  *service.NotificationService
+	log    *slog.Logger
 
 	IncrementalInterval time.Duration
 	IncrementalMinAge   time.Duration
 	ReconcileInterval   time.Duration
+	StaleScanInterval   time.Duration
 }
 
-func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, log *slog.Logger) *Scheduler {
+func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, notif *service.NotificationService, log *slog.Logger) *Scheduler {
 	return &Scheduler{
 		db:                  db,
 		sync:                sync,
+		notif:               notif,
 		log:                 log,
 		IncrementalInterval: 30 * time.Minute,
 		IncrementalMinAge:   2 * time.Hour,
 		ReconcileInterval:   24 * time.Hour,
+		StaleScanInterval:   6 * time.Hour,
 	}
 }
 
@@ -43,6 +47,41 @@ func (s *Scheduler) Run(ctx context.Context) {
 	// doesn't dogpile every user at once.
 	go s.loop(ctx, "incremental", 5*time.Minute, s.IncrementalInterval, s.tickIncremental)
 	go s.loop(ctx, "reconcile", 30*time.Minute, s.ReconcileInterval, s.tickReconcile)
+	go s.loop(ctx, "stale", 10*time.Minute, s.StaleScanInterval, s.tickStale)
+}
+
+// tickStale scans every user whose inbox contains items older than their
+// stale_inbox_days threshold, and writes one "N items going stale"
+// notification per day per user.
+func (s *Scheduler) tickStale(ctx context.Context) error {
+	rows, err := s.db.Query(ctx, `
+		SELECT usr.user_id,
+		       COUNT(*) FILTER (
+		         WHERE usr.starred_at < now() - (COALESCE(p.stale_inbox_days, 14) || ' days')::interval
+		       )
+		FROM user_starred_repos usr
+		LEFT JOIN user_preferences p ON p.user_id = usr.user_id
+		WHERE usr.is_starred = TRUE AND usr.status = 'inbox'
+		GROUP BY usr.user_id
+		HAVING COUNT(*) FILTER (
+		         WHERE usr.starred_at < now() - (COALESCE(p.stale_inbox_days, 14) || ' days')::interval
+		       ) > 0
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var uid int64
+		var n int
+		if err := rows.Scan(&uid, &n); err != nil {
+			return err
+		}
+		if err := s.notif.CreateStaleSummary(ctx, uid, n); err != nil {
+			s.log.Error("write stale notif", "user", uid, "err", err)
+		}
+	}
+	return nil
 }
 
 func (s *Scheduler) loop(ctx context.Context, name string, initial, interval time.Duration, fn func(context.Context) error) {

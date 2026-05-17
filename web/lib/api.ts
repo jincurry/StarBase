@@ -180,6 +180,49 @@ export const api = {
   share: (id: number) => http<{ token: string; url: string }>(`/api/stars/${id}/share`, { method: "POST" }),
   unshare: (id: number) => http<void>(`/api/stars/${id}/share`, { method: "DELETE" }),
 
+  // Tag rename / color
+  updateTag: (id: number, body: { name?: string; color?: string }) =>
+    http<ApiTag>(`/api/tags/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  // Account
+  disconnect: () => http<void>("/api/account/disconnect", { method: "POST" }),
+  deleteAccount: (confirm: string) =>
+    http<void>("/api/account/delete", { method: "POST", body: JSON.stringify({ confirm }) }),
+
+  // Preferences
+  getPrefs: () =>
+    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; updated_at: string }>(
+      "/api/preferences"
+    ),
+  setPrefs: (body: { stale_inbox_days?: number; auto_archive_on_unstar?: boolean }) =>
+    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; updated_at: string }>(
+      "/api/preferences",
+      { method: "PUT", body: JSON.stringify(body) }
+    ),
+
+  // Notifications
+  notifications: () =>
+    http<{
+      items: {
+        id: number;
+        kind: string;
+        star_id?: number;
+        title: string;
+        body?: string;
+        tag?: string;
+        unread: boolean;
+        created_at: string;
+      }[];
+    }>("/api/notifications"),
+  markNotificationRead: (id: number) =>
+    http<void>(`/api/notifications/${id}/read`, { method: "POST" }),
+  markAllNotificationsRead: () =>
+    http<void>("/api/notifications/read-all", { method: "POST" }),
+
+  // GitHub rate limit
+  rateLimit: () =>
+    http<{ limit: number; remaining: number; reset_at: string }>("/api/github/rate-limit"),
+
   // V2.0 AI (best-effort — endpoints return 503 when API key not configured)
   aiStatus: () => http<{ enabled: boolean }>("/api/ai/status"),
   aiSuggestTags: (id: number) =>

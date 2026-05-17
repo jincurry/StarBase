@@ -30,7 +30,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("starbase_oauth_state", state, 600, "/", "", false, true)
+	c.SetCookie("starbase_oauth_state", state, 600, "/", "", h.cfg.CookieSecure, true)
 	c.Redirect(http.StatusFound, h.auth.OAuthURL(state))
 }
 
@@ -48,8 +48,8 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(middleware.SessionCookieName, token, 60*60*24*30, "/", "", false, true)
-	c.SetCookie("starbase_oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie(middleware.SessionCookieName, token, 60*60*24*30, "/", "", h.cfg.CookieSecure, true)
+	c.SetCookie("starbase_oauth_state", "", -1, "/", "", h.cfg.CookieSecure, true)
 
 	// If first time, send the user to /welcome; otherwise to /inbox.
 	state2, _ := h.sync.State(c.Request.Context(), user.ID)
@@ -65,7 +65,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	if token != "" {
 		_ = h.auth.Logout(c.Request.Context(), token)
 	}
-	c.SetCookie(middleware.SessionCookieName, "", -1, "/", "", false, true)
+	c.SetCookie(middleware.SessionCookieName, "", -1, "/", "", h.cfg.CookieSecure, true)
 	c.Status(http.StatusNoContent)
 }
 

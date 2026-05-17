@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -9,18 +10,23 @@ import (
 	"github.com/jincurry/starbase/internal/api/handler"
 	"github.com/jincurry/starbase/internal/api/middleware"
 	"github.com/jincurry/starbase/internal/config"
+	"github.com/jincurry/starbase/internal/github"
 	"github.com/jincurry/starbase/internal/service"
 )
 
 type Deps struct {
-	Cfg    *config.Config
-	Auth   *service.AuthService
-	Sync   *service.SyncService
-	Star   *service.StarService
-	Tag    *service.TagService
-	Review *service.ReviewService
-	Event  *service.EventService
-	AI     *service.AIService
+	Cfg     *config.Config
+	GH      *github.Client
+	Auth    *service.AuthService
+	Sync    *service.SyncService
+	Star    *service.StarService
+	Tag     *service.TagService
+	Review  *service.ReviewService
+	Event   *service.EventService
+	AI      *service.AIService
+	Prefs   *service.PreferencesService
+	Notif   *service.NotificationService
+	Account *service.AccountService
 }
 
 func New(d Deps) *gin.Engine {
@@ -33,6 +39,10 @@ func New(d Deps) *gin.Engine {
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+	// CSRF — reject state-changing requests whose Origin doesn't match
+	// WebURL or PublicURL (some flows like OAuth callback come from
+	// PublicURL itself).
+	r.Use(middleware.CSRFOrigin([]string{d.Cfg.WebURL, d.Cfg.PublicURL}))
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
 
@@ -45,6 +55,12 @@ func New(d Deps) *gin.Engine {
 	shareH := handler.NewShare(d.Cfg, d.Star)
 	rssH := handler.NewRSS(d.Cfg, d.Star)
 	aiH := handler.NewAI(d.AI)
+	accountH := handler.NewAccount(d.Cfg, d.Account)
+	prefsH := handler.NewPreferences(d.Prefs)
+	notifH := handler.NewNotifications(d.Notif)
+	rateH := handler.NewRateLimit(d.GH)
+
+	aiBudget := middleware.AIBudget(d.Cfg.AIBudgetPerMin, time.Minute)
 
 	api := r.Group("/api")
 	{
@@ -76,6 +92,7 @@ func New(d Deps) *gin.Engine {
 
 		authed.GET("/tags", tagH.List)
 		authed.POST("/tags", tagH.Create)
+		authed.PATCH("/tags/:id", tagH.Update)
 		authed.DELETE("/tags/:id", tagH.Delete)
 
 		authed.GET("/review", reviewH.Get)
@@ -89,10 +106,26 @@ func New(d Deps) *gin.Engine {
 		authed.DELETE("/stars/:id/share", shareH.Revoke)
 		authed.GET("/feed/stars.atom", rssH.Stars)
 
-		// V2.0 — AI
+		// V2.0 — AI (budgeted)
 		authed.GET("/ai/status", aiH.Status)
-		authed.POST("/stars/:id/ai/suggest-tags", aiH.SuggestTags)
-		authed.POST("/stars/:id/ai/summarize", aiH.Summarize)
+		authed.POST("/stars/:id/ai/suggest-tags", aiBudget, aiH.SuggestTags)
+		authed.POST("/stars/:id/ai/summarize", aiBudget, aiH.Summarize)
+
+		// Account
+		authed.POST("/account/disconnect", accountH.Disconnect)
+		authed.POST("/account/delete", accountH.Delete)
+
+		// Preferences
+		authed.GET("/preferences", prefsH.Get)
+		authed.PUT("/preferences", prefsH.Update)
+
+		// Notifications
+		authed.GET("/notifications", notifH.List)
+		authed.POST("/notifications/:id/read", notifH.MarkRead)
+		authed.POST("/notifications/read-all", notifH.MarkAllRead)
+
+		// GitHub rate limit (most recently observed by our client)
+		authed.GET("/github/rate-limit", rateH.Get)
 	}
 
 	return r

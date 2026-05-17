@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Star, Notification } from "@/lib/types";
 import { Topbar } from "../topbar";
 import { Icon } from "../icons";
@@ -95,6 +96,7 @@ function LoadErrorState({ message, onRetry }: { message: string; onRetry: () => 
 }
 
 function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
+  const router = useRouter();
   return (
     <div style={{ padding: "60px 40px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
       <div style={{
@@ -109,8 +111,8 @@ function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
         <b style={{ color: "var(--ink-0)" }}>{processedThisWeek}</b> repos.
       </p>
       <div style={{ marginTop: 24, display: "flex", gap: 8 }}>
-        <button style={primaryBtn}>Open Review</button>
-        <button style={secondaryBtn}>Browse all stars</button>
+        <button style={primaryBtn} onClick={() => router.push("/review")}>Open Review</button>
+        <button style={secondaryBtn} onClick={() => router.push("/stars")}>Browse all stars</button>
       </div>
     </div>
   );
@@ -121,6 +123,7 @@ export function InboxScreen({
   onSync, syncing, notifications, onMarkNotification, onOpenPalette,
   onOpenDigest, digestVisible, onDismissDigest,
 }: Props) {
+  const router = useRouter();
   const inboxStars = stars.filter((s) => s.status === "inbox");
   const statsQ = useStats();
   const log = useEventLogger();
@@ -206,7 +209,7 @@ export function InboxScreen({
         }}>
           <Icon name="timer" size={13} />
           <span><b>{stale.length}</b> have been sitting in your inbox for over 14 days.</span>
-          <button style={ghostBtn}>Triage now</button>
+          <button style={ghostBtn} onClick={() => router.push("/review")}>Triage now</button>
         </div>
       )}
 

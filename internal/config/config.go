@@ -25,6 +25,9 @@ type Config struct {
 
 	AnthropicAPIKey string
 	AnthropicModel  string
+
+	CookieSecure bool
+	AIBudgetPerMin int
 }
 
 func Load() (*Config, error) {
@@ -40,6 +43,8 @@ func Load() (*Config, error) {
 	v.SetDefault("WORKER_CONCURRENCY", 2)
 	v.SetDefault("GITHUB_RATE_PER_SEC", 1.0)
 	v.SetDefault("GITHUB_CALLBACK", "http://localhost:8080/api/auth/github/callback")
+	v.SetDefault("COOKIE_SECURE", false)
+	v.SetDefault("AI_BUDGET_PER_MIN", 10)
 
 	cfg := &Config{
 		HTTPAddr:           v.GetString("HTTP_ADDR"),
@@ -55,6 +60,8 @@ func Load() (*Config, error) {
 		GitHubRatePerSec:   v.GetFloat64("GITHUB_RATE_PER_SEC"),
 		AnthropicAPIKey:    v.GetString("ANTHROPIC_API_KEY"),
 		AnthropicModel:     v.GetString("ANTHROPIC_MODEL"),
+		CookieSecure:       v.GetBool("COOKIE_SECURE"),
+		AIBudgetPerMin:     v.GetInt("AI_BUDGET_PER_MIN"),
 	}
 
 	if cfg.TokenKey == "" {

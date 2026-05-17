@@ -48,6 +48,109 @@ export function useTags() {
   });
 }
 
+export function usePreferences() {
+  return useQuery({
+    queryKey: ["preferences"],
+    queryFn: () => api.getPrefs(),
+    staleTime: 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useUpdatePreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { stale_inbox_days?: number; auto_archive_on_unstar?: boolean }) =>
+      api.setPrefs(body),
+    onSuccess: (data) => {
+      qc.setQueryData(["preferences"], data);
+    },
+    onError: (err) => reportError("Couldn't save preferences", err),
+  });
+}
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => api.notifications(),
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number | "all") =>
+      id === "all" ? api.markAllNotificationsRead() : api.markNotificationRead(id),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["notifications"] });
+      const prev = qc.getQueryData<{ items: any[] }>(["notifications"]);
+      qc.setQueryData<{ items: any[] }>(["notifications"], (cur) => {
+        if (!cur) return cur;
+        return {
+          items: cur.items.map((n) =>
+            id === "all" || n.id === id ? { ...n, unread: false } : n
+          ),
+        };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["notifications"], ctx.prev);
+    },
+  });
+}
+
+export function useRateLimit() {
+  return useQuery({
+    queryKey: ["github-rate-limit"],
+    queryFn: () => api.rateLimit(),
+    staleTime: 30_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useUpdateTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: { name?: string; color?: string } }) =>
+      api.updateTag(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tags"] });
+    },
+    onError: (err) => reportError("Couldn't update tag", err),
+  });
+}
+
+export function useDeleteTag() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.deleteTag(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tags"] });
+      qc.invalidateQueries({ queryKey: ["stars", "all"] });
+    },
+    onError: (err) => reportError("Couldn't delete tag", err),
+  });
+}
+
+export function useDisconnect() {
+  return useMutation({
+    mutationFn: () => api.disconnect(),
+    onError: (err) => reportError("Couldn't disconnect", err),
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (confirm: string) => api.deleteAccount(confirm),
+    onError: (err) => reportError("Couldn't delete account", err),
+  });
+}
+
 export function useAIStatus() {
   return useQuery({
     queryKey: ["ai-status"],
