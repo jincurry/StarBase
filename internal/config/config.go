@@ -22,6 +22,9 @@ type Config struct {
 
 	WorkerConcurrency int
 	GitHubRatePerSec  float64
+
+	AnthropicAPIKey string
+	AnthropicModel  string
 }
 
 func Load() (*Config, error) {
@@ -50,6 +53,8 @@ func Load() (*Config, error) {
 		SessionSecret:      v.GetString("SESSION_SECRET"),
 		WorkerConcurrency:  v.GetInt("WORKER_CONCURRENCY"),
 		GitHubRatePerSec:   v.GetFloat64("GITHUB_RATE_PER_SEC"),
+		AnthropicAPIKey:    v.GetString("ANTHROPIC_API_KEY"),
+		AnthropicModel:     v.GetString("ANTHROPIC_MODEL"),
 	}
 
 	if cfg.TokenKey == "" {

@@ -6,7 +6,17 @@ import { fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory } from "
 import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
-import { useAttachTag, useCreateTag, useEventLogger, useReadme } from "@/lib/queries";
+import {
+  useAIStatus,
+  useAttachTag,
+  useCreateTag,
+  useEventLogger,
+  useReadme,
+  useShareMutation,
+  useSuggestTagsMutation,
+  useSummarizeMutation,
+  useUnshareMutation,
+} from "@/lib/queries";
 import { Markdown } from "./markdown";
 
 interface DetailPanelProps {
@@ -391,7 +401,192 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
         </>
       )}
 
+      <AISection star={star} onAddTag={onAddTag} />
+
+      <ShareSection star={star} />
+
       {onOpenStar && <RelatedStars star={star} allStars={allStars} onOpen={onOpenStar} />}
+    </div>
+  );
+}
+
+function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagId: number) => void }) {
+  const status = useAIStatus();
+  const summarize = useSummarizeMutation();
+  const suggest = useSuggestTagsMutation();
+  const { tags: allTags } = useTagsCtx();
+  const createMut = useCreateTag();
+  const attachMut = useAttachTag();
+  const log = useEventLogger();
+
+  if (!status.data?.enabled) return null;
+
+  const onApplySuggestion = async (name: string) => {
+    // If the user already has this tag, just attach; otherwise create-and-attach.
+    const existing = allTags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    if (existing) {
+      onAddTag(star.id, existing.id);
+      log("tag_applied", { star_id: star.id, tag_id: existing.id, is_new_tag: false });
+      return;
+    }
+    try {
+      const t = await createMut.mutateAsync({ name });
+      log("tag_created", { tag_id: t.id });
+      await attachMut.mutateAsync({ starId: star.id, tagId: t.id });
+      log("tag_applied", { star_id: star.id, tag_id: t.id, is_new_tag: true });
+    } catch {
+      // toast already shown
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <SectionLabel>AI assist</SectionLabel>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+        <button
+          onClick={() => suggest.mutate(star.id)}
+          disabled={suggest.isPending}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+            background: "var(--accent-soft)", border: "1px solid color-mix(in oklch, var(--accent) 28%, transparent)",
+            color: "var(--accent)", fontSize: 12, fontWeight: 500,
+          }}
+        >
+          <Icon name="sparkle" size={11} />
+          {suggest.isPending ? "Thinking…" : "Suggest tags"}
+        </button>
+        <button
+          onClick={() => summarize.mutate(star.id)}
+          disabled={summarize.isPending}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+            background: "var(--surface-1)", border: "1px solid var(--border)",
+            color: "var(--ink-1)", fontSize: 12,
+          }}
+        >
+          <Icon name="note" size={11} />
+          {summarize.isPending ? "Summarising…" : "Summarize README"}
+        </button>
+      </div>
+      {suggest.data && suggest.data.suggestions.length > 0 && (
+        <div style={{
+          marginBottom: 10, padding: "10px 12px",
+          background: "var(--accent-soft)", borderRadius: 8,
+          border: "1px solid color-mix(in oklch, var(--accent) 18%, transparent)",
+        }}>
+          <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginBottom: 6 }}>
+            Suggested tags · {suggest.data.model}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {suggest.data.suggestions.map((s) => (
+              <button
+                key={s.name}
+                onClick={() => onApplySuggestion(s.name)}
+                title={s.reason}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "3px 9px", borderRadius: 999,
+                  background: "var(--surface-0)", border: "1px solid var(--border)",
+                  color: "var(--ink-0)", fontSize: 11.5, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                <Icon name="plus" size={10} /> #{s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {summarize.data && (
+        <div style={{
+          padding: "10px 12px", borderRadius: 8,
+          background: "var(--surface-1)", border: "1px solid var(--border)",
+          fontSize: 12.5, color: "var(--ink-1)", lineHeight: 1.55,
+        }}>
+          {summarize.data.text}
+          <div style={{ marginTop: 6, fontSize: 10.5, color: "var(--ink-3)" }}>
+            generated by {summarize.data.model}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ShareSection({ star }: { star: Star }) {
+  const [token, setToken] = useState<string | null>(null);
+  const [url, setUrl] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+  const share = useShareMutation();
+  const unshare = useUnshareMutation();
+
+  const onShare = async () => {
+    try {
+      const out = await share.mutateAsync(star.id);
+      setToken(out.token);
+      setUrl(out.url);
+    } catch {}
+  };
+  const onRevoke = async () => {
+    try {
+      await unshare.mutateAsync(star.id);
+      setToken(null);
+      setUrl("");
+    } catch {}
+  };
+  const copy = () => {
+    if (!url) return;
+    navigator.clipboard?.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <SectionLabel>Public share</SectionLabel>
+      {!token ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={onShare}
+            disabled={share.isPending}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+              background: "var(--surface-1)", border: "1px solid var(--border)",
+              color: "var(--ink-1)", fontSize: 12,
+            }}
+          >
+            <Icon name="extLink" size={11} />
+            {share.isPending ? "Creating…" : "Create share link"}
+          </button>
+          <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+            anyone with the link sees the note + tags
+          </span>
+        </div>
+      ) : (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "6px 8px 6px 12px", border: "1px solid var(--border)",
+          borderRadius: 6, background: "var(--surface-1)",
+        }}>
+          <code style={{ flex: 1, fontSize: 11.5, color: "var(--ink-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "'JetBrains Mono', monospace" }}>
+            {url}
+          </code>
+          <button onClick={copy} style={{
+            padding: "3px 9px", borderRadius: 5, border: "1px solid var(--border)",
+            background: "var(--surface-0)", color: "var(--ink-1)", fontSize: 11,
+            cursor: "pointer", fontFamily: "inherit",
+          }}>{copied ? "Copied" : "Copy"}</button>
+          <button onClick={onRevoke}
+            disabled={unshare.isPending}
+            style={{
+              padding: "3px 9px", borderRadius: 5, border: "1px solid var(--border)",
+              background: "transparent", color: "oklch(50% 0.16 25)", fontSize: 11,
+              cursor: "pointer", fontFamily: "inherit",
+            }}>Revoke</button>
+        </div>
+      )}
     </div>
   );
 }

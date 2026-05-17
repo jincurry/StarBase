@@ -12,6 +12,7 @@ import (
 
 	"github.com/jincurry/starbase/internal/github"
 	"github.com/jincurry/starbase/internal/model"
+	"github.com/jincurry/starbase/internal/pkg/crypto"
 )
 
 type StarService struct {
@@ -353,6 +354,79 @@ func (s *StarService) Stats(ctx context.Context, userID int64) (*Stats, error) {
 		SELECT COUNT(*) FROM user_starred_repos WHERE user_id=$1 AND starred_at > now() - interval '7 days'
 	`, userID).Scan(&out.ThisWeek)
 	return out, nil
+}
+
+// CreateShareToken sets (or returns the existing) public share token for
+// the given star. The returned token is opaque and URL-safe.
+func (s *StarService) CreateShareToken(ctx context.Context, userID, starID int64) (string, error) {
+	var existing string
+	err := s.db.QueryRow(ctx, `
+		SELECT COALESCE(share_token, '')
+		FROM user_starred_repos WHERE id=$1 AND user_id=$2
+	`, starID, userID).Scan(&existing)
+	if err != nil {
+		return "", err
+	}
+	if existing != "" {
+		return existing, nil
+	}
+	tok, err := crypto.RandomToken(18) // 36-char URL-safe hex
+	if err != nil {
+		return "", err
+	}
+	_, err = s.db.Exec(ctx, `
+		UPDATE user_starred_repos SET share_token=$3, updated_at=now()
+		WHERE id=$1 AND user_id=$2
+	`, starID, userID, tok)
+	if err != nil {
+		return "", err
+	}
+	return tok, nil
+}
+
+func (s *StarService) RevokeShareToken(ctx context.Context, userID, starID int64) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE user_starred_repos SET share_token=NULL, updated_at=now()
+		WHERE id=$1 AND user_id=$2
+	`, starID, userID)
+	return err
+}
+
+// PublicStar represents the read-only public view of a shared star.
+// Notice: no user identifying info.
+type PublicStar struct {
+	Owner       string    `json:"owner"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Note        string    `json:"note"`
+	Status      string    `json:"status"`
+	Language    string    `json:"language"`
+	Stars       int       `json:"stars"`
+	Topics      []string  `json:"topics"`
+	StarredAt   time.Time `json:"starred_at"`
+}
+
+// PublicByToken fetches the public view of a shared star.
+func (s *StarService) PublicByToken(ctx context.Context, token string) (*PublicStar, error) {
+	var p PublicStar
+	err := s.db.QueryRow(ctx, `
+		SELECT r.owner, r.name, COALESCE(r.description,''),
+		       COALESCE(usr.note,''), usr.status,
+		       COALESCE(r.language,''), r.stargazers_count,
+		       COALESCE(r.topics, '{}'::text[]), usr.starred_at
+		FROM user_starred_repos usr JOIN repos r ON r.id = usr.repo_id
+		WHERE usr.share_token = $1
+	`, token).Scan(
+		&p.Owner, &p.Name, &p.Description, &p.Note, &p.Status,
+		&p.Language, &p.Stars, &p.Topics, &p.StarredAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("not found")
+		}
+		return nil, err
+	}
+	return &p, nil
 }
 
 // Readme returns the rendered README content for a starred repo. Falls

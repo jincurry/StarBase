@@ -176,6 +176,22 @@ export const api = {
   view: (id: number) => http<void>(`/api/stars/${id}/view`, { method: "POST" }),
   readme: (id: number) => http<{ content: string }>(`/api/stars/${id}/readme`),
 
+  // V1.3 share
+  share: (id: number) => http<{ token: string; url: string }>(`/api/stars/${id}/share`, { method: "POST" }),
+  unshare: (id: number) => http<void>(`/api/stars/${id}/share`, { method: "DELETE" }),
+
+  // V2.0 AI (best-effort — endpoints return 503 when API key not configured)
+  aiStatus: () => http<{ enabled: boolean }>("/api/ai/status"),
+  aiSuggestTags: (id: number) =>
+    http<{ suggestions: { name: string; reason: string }[]; model: string; cached_at: string }>(
+      `/api/stars/${id}/ai/suggest-tags`,
+      { method: "POST" }
+    ),
+  aiSummarize: (id: number) =>
+    http<{ text: string; model: string; cached_at: string }>(`/api/stars/${id}/ai/summarize`, {
+      method: "POST",
+    }),
+
   // tags
   listTags: () => http<{ items: ApiTag[] }>("/api/tags"),
   createTag: (name: string, color?: string) =>

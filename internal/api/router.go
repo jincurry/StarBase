@@ -20,6 +20,7 @@ type Deps struct {
 	Tag    *service.TagService
 	Review *service.ReviewService
 	Event  *service.EventService
+	AI     *service.AIService
 }
 
 func New(d Deps) *gin.Engine {
@@ -41,12 +42,17 @@ func New(d Deps) *gin.Engine {
 	tagH := handler.NewTags(d.Tag)
 	reviewH := handler.NewReview(d.Review, d.Star)
 	eventsH := handler.NewEvents(d.Event)
+	shareH := handler.NewShare(d.Cfg, d.Star)
+	rssH := handler.NewRSS(d.Cfg, d.Star)
+	aiH := handler.NewAI(d.AI)
 
 	api := r.Group("/api")
 	{
 		api.GET("/auth/github", authH.Login)
 		api.GET("/auth/github/callback", authH.Callback)
 		api.POST("/auth/logout", authH.Logout)
+		// Public read-only view of a shared star.
+		api.GET("/share/:token", shareH.Public)
 	}
 
 	authed := api.Group("")
@@ -77,6 +83,16 @@ func New(d Deps) *gin.Engine {
 
 		authed.GET("/stats", starH.Stats)
 		authed.POST("/events", eventsH.Record)
+
+		// V1.3 — share + RSS
+		authed.POST("/stars/:id/share", shareH.Create)
+		authed.DELETE("/stars/:id/share", shareH.Revoke)
+		authed.GET("/feed/stars.atom", rssH.Stars)
+
+		// V2.0 — AI
+		authed.GET("/ai/status", aiH.Status)
+		authed.POST("/stars/:id/ai/suggest-tags", aiH.SuggestTags)
+		authed.POST("/stars/:id/ai/summarize", aiH.Summarize)
 	}
 
 	return r

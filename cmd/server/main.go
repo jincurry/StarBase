@@ -49,10 +49,11 @@ func main() {
 	star := service.NewStar(pool, gh, auth)
 	tag := service.NewTag(pool)
 	review := service.NewReview(pool, star)
+	ai := service.NewAI(pool, gh, auth, cfg.AnthropicAPIKey, cfg.AnthropicModel)
 
 	r := api.New(api.Deps{
 		Cfg: cfg, Auth: auth, Sync: syncSvc, Star: star,
-		Tag: tag, Review: review, Event: event,
+		Tag: tag, Review: review, Event: event, AI: ai,
 	})
 
 	srv := &http.Server{

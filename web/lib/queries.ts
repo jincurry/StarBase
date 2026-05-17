@@ -48,6 +48,44 @@ export function useTags() {
   });
 }
 
+export function useAIStatus() {
+  return useQuery({
+    queryKey: ["ai-status"],
+    queryFn: () => api.aiStatus(),
+    staleTime: 60 * 60_000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useShareMutation() {
+  return useMutation({
+    mutationFn: (starId: number) => api.share(starId),
+    onError: (err) => reportError("Couldn't create share link", err),
+  });
+}
+
+export function useUnshareMutation() {
+  return useMutation({
+    mutationFn: (starId: number) => api.unshare(starId),
+    onError: (err) => reportError("Couldn't revoke share link", err),
+  });
+}
+
+export function useSuggestTagsMutation() {
+  return useMutation({
+    mutationFn: (starId: number) => api.aiSuggestTags(starId),
+    onError: (err) => reportError("Couldn't suggest tags", err),
+  });
+}
+
+export function useSummarizeMutation() {
+  return useMutation({
+    mutationFn: (starId: number) => api.aiSummarize(starId),
+    onError: (err) => reportError("Couldn't summarize README", err),
+  });
+}
+
 export function useReadme(starId: number | undefined, enabled: boolean) {
   return useQuery({
     queryKey: ["readme", starId],

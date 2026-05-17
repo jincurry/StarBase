@@ -43,7 +43,14 @@ func main() {
 	event := service.NewEvent(pool)
 	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)
 
+	sched := worker.NewScheduler(pool, syncSvc, log)
+	sched.Run(ctx)
+
 	p := worker.New(syncSvc, cfg.WorkerConcurrency, log)
-	log.Info("worker pool running", "concurrency", cfg.WorkerConcurrency)
+	log.Info("worker pool running",
+		"concurrency", cfg.WorkerConcurrency,
+		"auto_incremental", sched.IncrementalInterval,
+		"auto_reconcile", sched.ReconcileInterval,
+	)
 	_ = p.Run(ctx)
 }

@@ -2,10 +2,12 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/jincurry/starbase/internal/github"
 	"github.com/jincurry/starbase/internal/service"
 )
 
@@ -51,19 +53,43 @@ func (p *Pool) loop(ctx context.Context, id int) {
 			sleep(ctx, 2*time.Second)
 			continue
 		}
-		p.log.Info("running job", "worker", id, "id", job.ID, "type", job.JobType, "user", job.UserID)
+		p.log.Info("running job", "worker", id, "id", job.ID, "type", job.JobType, "user", job.UserID, "attempt", job.Attempts)
 		runErr := p.sync.Run(ctx, job)
-		final := service.JobDone
-		msg := ""
-		if runErr != nil {
-			final = service.JobFailed
-			msg = runErr.Error()
-			p.log.Error("job failed", "id", job.ID, "err", runErr)
+		if runErr == nil {
+			if err := p.sync.Finish(ctx, job.ID, service.JobDone, ""); err != nil {
+				p.log.Error("finish job", "id", job.ID, "err", err)
+			}
+			continue
 		}
-		if err := p.sync.Finish(ctx, job.ID, final, msg); err != nil {
-			p.log.Error("finish job", "id", job.ID, "err", err)
+		// Failure: schedule a retry with exponential backoff (up to maxAttempts).
+		// Auth failures are non-retryable; bail immediately.
+		const maxAttempts = 5
+		if isFatal(runErr) {
+			p.log.Error("job permanently failed", "id", job.ID, "err", runErr)
+			_ = p.sync.Finish(ctx, job.ID, service.JobFailed, runErr.Error())
+			continue
+		}
+		retried, err := p.sync.Reschedule(ctx, job.ID, job.Attempts, runErr.Error(), maxAttempts)
+		if err != nil {
+			p.log.Error("reschedule failed", "id", job.ID, "err", err)
+		}
+		if retried {
+			p.log.Warn("job rescheduled", "id", job.ID, "attempt", job.Attempts, "err", runErr)
+		} else {
+			p.log.Error("job permanently failed (max attempts)", "id", job.ID, "err", runErr)
 		}
 	}
+}
+
+func isFatal(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Token problems won't get better by retrying.
+	if errors.Is(err, github.ErrUnauthorized) {
+		return true
+	}
+	return false
 }
 
 func sleep(ctx context.Context, d time.Duration) {

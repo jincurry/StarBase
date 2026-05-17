@@ -98,6 +98,8 @@ type SyncJob struct {
 	ProgressDone  int        `json:"progress_done"`
 	Payload       []byte     `json:"-"`
 	ErrorMessage  string     `json:"error_message,omitempty"`
+	Attempts      int        `json:"attempts"`
+	NextRunAt     *time.Time `json:"next_run_at,omitempty"`
 	StartedAt     *time.Time `json:"started_at,omitempty"`
 	FinishedAt    *time.Time `json:"finished_at,omitempty"`
 	CreatedAt     time.Time  `json:"created_at"`

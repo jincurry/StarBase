@@ -86,6 +86,7 @@ func (s *SyncService) Enqueue(ctx context.Context, userID int64, jobType string,
 }
 
 // Claim atomically pulls the next pending job using FOR UPDATE SKIP LOCKED.
+// Skips jobs whose next_run_at is still in the future (back-off).
 func (s *SyncService) Claim(ctx context.Context) (*model.SyncJob, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -95,13 +96,14 @@ func (s *SyncService) Claim(ctx context.Context) (*model.SyncJob, error) {
 
 	var job model.SyncJob
 	err = tx.QueryRow(ctx, `
-		SELECT id, user_id, job_type, status, COALESCE(payload, '{}'::jsonb), created_at
+		SELECT id, user_id, job_type, status, COALESCE(payload, '{}'::jsonb), created_at, attempts
 		FROM sync_jobs
 		WHERE status = 'pending'
+		  AND (next_run_at IS NULL OR next_run_at <= now())
 		ORDER BY created_at
 		FOR UPDATE SKIP LOCKED
 		LIMIT 1
-	`).Scan(&job.ID, &job.UserID, &job.JobType, &job.Status, &job.Payload, &job.CreatedAt)
+	`).Scan(&job.ID, &job.UserID, &job.JobType, &job.Status, &job.Payload, &job.CreatedAt, &job.Attempts)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -111,7 +113,9 @@ func (s *SyncService) Claim(ctx context.Context) (*model.SyncJob, error) {
 
 	now := time.Now()
 	_, err = tx.Exec(ctx, `
-		UPDATE sync_jobs SET status='running', started_at=$2 WHERE id=$1
+		UPDATE sync_jobs
+		   SET status='running', started_at=$2, attempts=attempts+1
+		 WHERE id=$1
 	`, job.ID, now)
 	if err != nil {
 		return nil, err
@@ -121,6 +125,7 @@ func (s *SyncService) Claim(ctx context.Context) (*model.SyncJob, error) {
 	}
 	job.Status = JobRunning
 	job.StartedAt = &now
+	job.Attempts++
 	return &job, nil
 }
 
@@ -133,6 +138,27 @@ func (s *SyncService) Finish(ctx context.Context, jobID int64, finalStatus, errM
 		 WHERE id=$1
 	`, jobID, finalStatus, errMsg)
 	return err
+}
+
+// Reschedule flips a failed job back to pending with an exponential
+// next_run_at. Returns false if maxAttempts has been reached.
+func (s *SyncService) Reschedule(ctx context.Context, jobID int64, attempt int, errMsg string, maxAttempts int) (bool, error) {
+	if attempt >= maxAttempts {
+		return false, s.Finish(ctx, jobID, JobFailed, errMsg)
+	}
+	// 30s, 60s, 2m, 4m, 8m, 16m, ... capped at 30m.
+	backoff := time.Duration(30*(1<<attempt)) * time.Second
+	if backoff > 30*time.Minute {
+		backoff = 30 * time.Minute
+	}
+	_, err := s.db.Exec(ctx, `
+		UPDATE sync_jobs
+		   SET status='pending',
+		       next_run_at=now() + $2::interval,
+		       error_message=NULLIF($3,'')
+		 WHERE id=$1
+	`, jobID, fmt.Sprintf("%d seconds", int(backoff.Seconds())), errMsg)
+	return true, err
 }
 
 func (s *SyncService) Progress(ctx context.Context, jobID int64, done, total int) {
