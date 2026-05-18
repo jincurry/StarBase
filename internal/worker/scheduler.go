@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -183,20 +184,5 @@ func formatInterval(d time.Duration) string {
 	if secs < 1 {
 		secs = 1
 	}
-	return formatSecs(secs)
-}
-
-func formatSecs(n int) string {
-	// Tiny helper to avoid pulling fmt for one call site.
-	const digits = "0123456789"
-	if n == 0 {
-		return "0 seconds"
-	}
-	buf := make([]byte, 0, 16)
-	x := n
-	for x > 0 {
-		buf = append([]byte{digits[x%10]}, buf...)
-		x /= 10
-	}
-	return string(buf) + " seconds"
+	return fmt.Sprintf("%d seconds", secs)
 }

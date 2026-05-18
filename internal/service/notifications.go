@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -85,43 +86,13 @@ func (s *NotificationService) CreateStaleSummary(ctx context.Context, userID int
 	if exists {
 		return nil
 	}
+	title := fmt.Sprintf("%d inbox items going stale", count)
+	if count == 1 {
+		title = "1 inbox item going stale"
+	}
 	_, err = s.db.Exec(ctx, `
 		INSERT INTO notifications (user_id, kind, title, body)
 		VALUES ($1, 'stale', $2, $3)
-	`, userID,
-		// title
-		joinCount(count, "inbox items going stale"),
-		// body
-		"They've been waiting too long — triage on the Review page.",
-	)
+	`, userID, title, "They've been waiting too long — triage on the Review page.")
 	return err
-}
-
-func joinCount(n int, label string) string {
-	if n == 1 {
-		return "1 " + label
-	}
-	return intToStr(n) + " " + label
-}
-
-func intToStr(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	const digits = "0123456789"
-	buf := make([]byte, 0, 12)
-	x := n
-	neg := false
-	if x < 0 {
-		neg = true
-		x = -x
-	}
-	for x > 0 {
-		buf = append([]byte{digits[x%10]}, buf...)
-		x /= 10
-	}
-	if neg {
-		buf = append([]byte{'-'}, buf...)
-	}
-	return string(buf)
 }

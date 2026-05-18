@@ -22,6 +22,7 @@ import { Markdown } from "./markdown";
 interface DetailPanelProps {
   star?: Star;
   allStars: Star[];
+  authed?: boolean;
   onChangeStatus: (id: number, status: Star["status"]) => void;
   onAddTag: (id: number, tagId: number) => void;
   onRemoveTag: (id: number, tagId: number) => void;
@@ -32,7 +33,7 @@ interface DetailPanelProps {
 }
 
 export function DetailPanel({
-  star, allStars, onChangeStatus, onAddTag, onRemoveTag, onSaveNote,
+  star, allStars, authed, onChangeStatus, onAddTag, onRemoveTag, onSaveNote,
   onToggleWatch, onOpenStar, onClose,
 }: DetailPanelProps) {
   const [tab, setTab] = useState<"overview" | "readme" | "notes" | "activity">("overview");
@@ -68,7 +69,7 @@ export function DetailPanel({
             onAddTag={onAddTag} onRemoveTag={onRemoveTag}
             onOpenStar={onOpenStar} />
         )}
-        {tab === "readme" && <ReadmeTab star={star} githubUrl={githubUrl} />}
+        {tab === "readme" && <ReadmeTab star={star} githubUrl={githubUrl} authed={!!authed} />}
         {tab === "notes" && <NotesTab star={star} onSaveNote={onSaveNote} />}
         {tab === "activity" && <ActivityTab star={star} githubUrl={githubUrl} />}
       </div>
@@ -617,10 +618,10 @@ function Sparkline({ values, w = 360, h = 40 }: { values: number[]; w?: number; 
   );
 }
 
-function ReadmeTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
-  // Try the live README from GitHub first; if it fails (e.g. demo mode,
-  // no auth, repo with no README), fall back to the mock blocks.
-  const live = useReadme(star.id, true);
+function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string; authed: boolean }) {
+  // Try the live README from GitHub when signed in; otherwise stick
+  // with the mock blocks (no point firing requests that'll 401).
+  const live = useReadme(star.id, authed);
   const liveContent = live.data?.content?.trim();
   const mock = getReadme(star);
 

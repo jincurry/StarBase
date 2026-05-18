@@ -24,5 +24,3 @@ func (h *RateLimitHandler) Get(c *gin.Context) {
 		"reset_at":  reset,
 	})
 }
-
-// Update tag rename endpoint signature in handler/tags.go too.

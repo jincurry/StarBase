@@ -27,7 +27,8 @@ export function useStars() {
     queryKey: ["stars", "all"],
     queryFn: async () => {
       // Pull a generous batch — UI does its own client-side filtering.
-      const params = new URLSearchParams({ status: "all", page_size: "500" });
+      // 1000 covers heavy users; backend caps anyway.
+      const params = new URLSearchParams({ status: "all", page_size: "1000" });
       const res = await api.listStars(params);
       return (res.items || []).map(mapStar);
     },
@@ -298,6 +299,10 @@ export function useAttachTag() {
       );
       return { prev };
     },
+    onSuccess: () => {
+      // Smart-inbox "Untagged" count and any tag-derived stat may change.
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
     onError: (e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["stars", "all"], ctx.prev);
       reportError("Couldn't attach tag", e);
@@ -319,6 +324,9 @@ export function useDetachTag() {
           : cur
       );
       return { prev };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["stats"] });
     },
     onError: (e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(["stars", "all"], ctx.prev);
@@ -352,7 +360,13 @@ export function useSyncMutation() {
 }
 
 export function useEventLogger() {
+  // Tie analytics to auth state — sending events while signed out just
+  // creates a stream of 401s in the console (the user can't be attributed
+  // anyway). The query is already cached app-wide so this is cheap.
+  const me = useMe();
+  const enabled = !!me.data?.user;
   return (event: string, properties?: Record<string, any>) => {
+    if (!enabled) return;
     // Fire-and-forget; ignore errors so analytics never block the UI.
     api.event(event, properties).catch(() => {});
   };

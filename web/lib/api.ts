@@ -263,7 +263,8 @@ export const api = {
       dropped: number;
       archived: number;
       with_notes: number;
-      this_week: number;
+      new_this_week: number;
+      processed_this_week: number;
       by_status: Record<string, number>;
     }>("/api/stats"),
   event: (event: string, properties?: Record<string, any>) =>

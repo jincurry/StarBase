@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +23,7 @@ func (h *ReviewHandler) Get(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	p, err := h.review.Build(c.Request.Context(), u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 	c.JSON(200, p)
@@ -34,8 +33,8 @@ func (h *ReviewHandler) MarkSeen(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, _ := strconv.ParseInt(c.Param("starId"), 10, 64)
 	if err := h.star.MarkReviewed(c.Request.Context(), u.ID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.Status(204)
 }

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/jincurry/starbase/internal/api/middleware"
@@ -27,37 +25,37 @@ func (h *SyncHandler) Initial(c *gin.Context) {
 	}
 	id, err := h.sync.Enqueue(c.Request.Context(), u.ID, service.JobInitial, service.InitialPayload{InboxCount: body.InboxCount})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"job_id": id})
+	c.JSON(202, gin.H{"job_id": id})
 }
 
 func (h *SyncHandler) Incremental(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, err := h.sync.Enqueue(c.Request.Context(), u.ID, service.JobIncremental, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"job_id": id})
+	c.JSON(202, gin.H{"job_id": id})
 }
 
 func (h *SyncHandler) Reconcile(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, err := h.sync.Enqueue(c.Request.Context(), u.ID, service.JobReconcile, nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"job_id": id})
+	c.JSON(202, gin.H{"job_id": id})
 }
 
 func (h *SyncHandler) Status(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	state, err := h.sync.State(c.Request.Context(), u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 	job, _ := h.sync.CurrentJob(c.Request.Context(), u.ID)

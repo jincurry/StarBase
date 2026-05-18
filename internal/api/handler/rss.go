@@ -63,7 +63,7 @@ func (h *RSSHandler) Stars(c *gin.Context) {
 		PageSize: 50,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *RSSHandler) Stars(c *gin.Context) {
 
 	out, err := xml.MarshalIndent(feed, "", "  ")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 	c.Header("Content-Type", "application/atom+xml; charset=utf-8")

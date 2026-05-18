@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -23,27 +22,27 @@ func (h *NotificationsHandler) List(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	out, err := h.notif.List(c.Request.Context(), u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": out})
+	c.JSON(200, gin.H{"items": out})
 }
 
 func (h *NotificationsHandler) MarkRead(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.notif.MarkRead(c.Request.Context(), u.ID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.Status(204)
 }
 
 func (h *NotificationsHandler) MarkAllRead(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	if err := h.notif.MarkAllRead(c.Request.Context(), u.ID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.Status(204)
 }

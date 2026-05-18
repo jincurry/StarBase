@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -67,12 +68,12 @@ func (s *TagService) Update(ctx context.Context, userID, tagID int64, name, colo
 		if n == "" {
 			return nil, errors.New("name required")
 		}
-		sets = append(sets, "name = $"+itoa(idx))
+		sets = append(sets, fmt.Sprintf("name = $%d", idx))
 		args = append(args, n)
 		idx++
 	}
 	if color != nil {
-		sets = append(sets, "color = NULLIF($"+itoa(idx)+", '')")
+		sets = append(sets, fmt.Sprintf("color = NULLIF($%d, '')", idx))
 		args = append(args, *color)
 		idx++
 	}
@@ -96,20 +97,6 @@ func (s *TagService) Update(ctx context.Context, userID, tagID int64, name, colo
 		return nil, err
 	}
 	return &t, nil
-}
-
-// itoa is a tiny no-allocation replacement for strconv just to keep imports lean.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	buf := make([]byte, 0, 8)
-	x := n
-	for x > 0 {
-		buf = append([]byte{byte('0' + x%10)}, buf...)
-		x /= 10
-	}
-	return string(buf)
 }
 
 func (s *TagService) Delete(ctx context.Context, userID, tagID int64) error {

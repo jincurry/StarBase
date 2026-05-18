@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Icon } from "./icons";
 import { Kbd } from "./primitives";
 import { NotificationsButton } from "./notifications";
+import { useIsTight } from "@/lib/use-window-width";
 import type { Notification } from "@/lib/types";
 
 interface TopbarProps {
@@ -22,7 +23,7 @@ export function Topbar({
   title, subtitle, onSync, syncing, right,
   notifications, onMarkNotification, onOpenStar, onOpenPalette,
 }: TopbarProps) {
-  const tight = typeof window !== "undefined" && window.innerWidth < 1100;
+  const tight = useIsTight();
   return (
     <div style={{
       height: 48, flexShrink: 0,

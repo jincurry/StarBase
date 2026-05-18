@@ -113,6 +113,7 @@ func (l *limiter) wait(ctx context.Context) error {
 	if wait < 0 {
 		wait = 0
 	}
+	prevNext := l.next
 	l.next = time.Now().Add(wait + l.interval)
 	l.mu.Unlock()
 	if wait <= 0 {
@@ -122,6 +123,13 @@ func (l *limiter) wait(ctx context.Context) error {
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
+		// Hand the slot back so the next caller doesn't have to wait
+		// twice on our cancelled reservation.
+		l.mu.Lock()
+		if l.next.After(prevNext) {
+			l.next = prevNext
+		}
+		l.mu.Unlock()
 		return ctx.Err()
 	case <-t.C:
 		return nil

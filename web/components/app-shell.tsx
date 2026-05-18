@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useWindowWidth } from "@/lib/use-window-width";
 import type { Star, User } from "@/lib/types";
 import { NOTIFICATIONS, STARS } from "@/lib/mock-data";
 import {
@@ -27,16 +28,6 @@ import { TokenInvalidBanner } from "./banners";
 
 const ROUTES = ["inbox", "stars", "review", "settings"] as const;
 type Route = (typeof ROUTES)[number];
-
-function useWindowWidth() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return w;
-}
 
 export function AppShell({ initialRoute }: { initialRoute: Route }) {
   const router = useRouter();
@@ -379,6 +370,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
                 borderLeft: "1px solid var(--border)",
               }}>
                 <DetailPanel star={selected} allStars={stars2}
+                  authed={authed}
                   onChangeStatus={setStatus}
                   onAddTag={addTag} onRemoveTag={removeTag}
                   onSaveNote={saveNote}

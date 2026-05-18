@@ -123,11 +123,21 @@ func (a *AuthService) Logout(ctx context.Context, token string) error {
 	return err
 }
 
+// ErrDisconnected is returned when the user has revoked their connection
+// to GitHub (the stored access_token is empty). Workers and AI features
+// should treat this as fatal and stop trying.
+var ErrDisconnected = errors.New("user has disconnected from GitHub")
+
 // AccessTokenFor decrypts the GitHub access token for the given user.
+// Returns ErrDisconnected when the user has cleared their token via
+// /api/account/disconnect — callers should bail rather than retry.
 func (a *AuthService) AccessTokenFor(ctx context.Context, userID int64) (string, error) {
 	var enc string
 	if err := a.db.QueryRow(ctx, `SELECT access_token FROM users WHERE id=$1`, userID).Scan(&enc); err != nil {
 		return "", err
+	}
+	if enc == "" {
+		return "", ErrDisconnected
 	}
 	return a.aead.Decrypt(enc)
 }

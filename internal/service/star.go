@@ -44,8 +44,8 @@ func (f *StarFilter) normalize() {
 	if f.PageSize <= 0 {
 		f.PageSize = 50
 	}
-	if f.PageSize > 200 {
-		f.PageSize = 200
+	if f.PageSize > 1000 {
+		f.PageSize = 1000
 	}
 	if f.Page < 1 {
 		f.Page = 1
@@ -59,6 +59,12 @@ func (s *StarService) List(ctx context.Context, userID int64, f StarFilter) ([]m
 	f.normalize()
 	args := []any{userID}
 	conds := []string{"usr.user_id = $1"}
+
+	// Default to "currently starred on GitHub". Callers who explicitly
+	// want unstarred-but-retained rows can pass IsStarred = &false.
+	if f.IsStarred == nil {
+		conds = append(conds, "usr.is_starred = TRUE")
+	}
 
 	add := func(c string, v any) {
 		args = append(args, v)
@@ -304,15 +310,16 @@ func (s *StarService) MarkReviewed(ctx context.Context, userID, starID int64) er
 
 // Stats returns per-status counts for the user.
 type Stats struct {
-	Total      int            `json:"total"`
-	Inbox      int            `json:"inbox"`
-	Reviewing  int            `json:"reviewing"`
-	Kept       int            `json:"kept"`
-	Dropped    int            `json:"dropped"`
-	Archived   int            `json:"archived"`
-	WithNotes  int            `json:"with_notes"`
-	ThisWeek   int            `json:"this_week"`
-	ByStatus   map[string]int `json:"by_status"`
+	Total              int            `json:"total"`
+	Inbox              int            `json:"inbox"`
+	Reviewing          int            `json:"reviewing"`
+	Kept               int            `json:"kept"`
+	Dropped            int            `json:"dropped"`
+	Archived           int            `json:"archived"`
+	WithNotes          int            `json:"with_notes"`
+	NewThisWeek        int            `json:"new_this_week"`        // newly starred in the last 7d
+	ProcessedThisWeek  int            `json:"processed_this_week"`  // status changed in the last 7d
+	ByStatus           map[string]int `json:"by_status"`
 }
 
 func (s *StarService) Stats(ctx context.Context, userID int64) (*Stats, error) {
@@ -348,11 +355,17 @@ func (s *StarService) Stats(ctx context.Context, userID int64) (*Stats, error) {
 		out.Total += n
 	}
 	_ = s.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM user_starred_repos WHERE user_id=$1 AND COALESCE(note,'')<>''
+		SELECT COUNT(*) FROM user_starred_repos
+		WHERE user_id=$1 AND COALESCE(note,'')<>'' AND is_starred=TRUE
 	`, userID).Scan(&out.WithNotes)
 	_ = s.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM user_starred_repos WHERE user_id=$1 AND starred_at > now() - interval '7 days'
-	`, userID).Scan(&out.ThisWeek)
+		SELECT COUNT(*) FROM user_starred_repos
+		WHERE user_id=$1 AND starred_at > now() - interval '7 days' AND is_starred=TRUE
+	`, userID).Scan(&out.NewThisWeek)
+	_ = s.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM user_starred_repos
+		WHERE user_id=$1 AND last_reviewed_at > now() - interval '7 days'
+	`, userID).Scan(&out.ProcessedThisWeek)
 	return out, nil
 }
 

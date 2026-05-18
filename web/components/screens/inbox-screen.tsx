@@ -133,7 +133,7 @@ export function InboxScreen({
   const prevInboxRef = useRef<number | null>(null);
   useEffect(() => {
     if (prevInboxRef.current !== 0 && inboxStars.length === 0 && !loading) {
-      log("inbox_zero_reached", { processed_count_this_week: statsQ.data?.this_week ?? 0 });
+      log("inbox_zero_reached", { processed_count_this_week: statsQ.data?.processed_this_week ?? 0 });
       log("empty_state_viewed", { state_type: "inbox_zero" });
     }
     prevInboxRef.current = inboxStars.length;
@@ -193,8 +193,8 @@ export function InboxScreen({
         onOpenPalette={onOpenPalette}
         right={
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginRight: 4 }}>
-            <Stat label="kept" value={String(statsQ.data?.kept ?? "—")} tone="accent" />
-            <Stat label="this week" value={String(statsQ.data?.this_week ?? "—")} />
+            <Stat label="processed this week" value={String(statsQ.data?.processed_this_week ?? "—")} tone="accent" />
+            <Stat label="new this week" value={String(statsQ.data?.new_this_week ?? "—")} />
           </div>
         }
       />

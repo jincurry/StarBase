@@ -2,13 +2,13 @@ package handler
 
 import (
 	"net/http"
-	"net/url"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/jincurry/starbase/internal/api/middleware"
 	"github.com/jincurry/starbase/internal/config"
 	"github.com/jincurry/starbase/internal/model"
+	"github.com/jincurry/starbase/internal/pkg/apperror"
 	"github.com/jincurry/starbase/internal/pkg/crypto"
 	"github.com/jincurry/starbase/internal/service"
 )
@@ -26,7 +26,7 @@ func NewAuth(cfg *config.Config, auth *service.AuthService, sync *service.SyncSe
 func (h *AuthHandler) Login(c *gin.Context) {
 	state, err := crypto.RandomToken(16)
 	if err != nil {
-		c.AbortWithStatusJSON(500, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, apperror.Internal("Couldn't start sign-in"))
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
@@ -44,7 +44,8 @@ func (h *AuthHandler) Callback(c *gin.Context) {
 	}
 	token, user, err := h.auth.HandleCallback(c.Request.Context(), code)
 	if err != nil {
-		c.Redirect(http.StatusFound, h.cfg.WebURL+"/?error="+url.QueryEscape(err.Error()))
+		// Don't leak raw OAuth/decoder errors in the URL.
+		c.Redirect(http.StatusFound, h.cfg.WebURL+"/?error=oauth_failed")
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)

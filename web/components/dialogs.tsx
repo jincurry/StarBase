@@ -291,7 +291,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
 }) {
   const week = weekLabel();
   const statsQ = useStats();
-  const triaged = statsQ.data?.this_week ?? 0;
+  const triaged = statsQ.data?.processed_this_week ?? 0;
   const kept = statsQ.data?.kept ?? stars.filter((s) => s.status === "kept").length;
   const dropped = statsQ.data?.dropped ?? 0;
   const newlyStarred = stars.filter((s) => s.status === "inbox").slice(0, 3);

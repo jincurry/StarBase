@@ -1,12 +1,11 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/jincurry/starbase/internal/api/middleware"
 	"github.com/jincurry/starbase/internal/model"
+	"github.com/jincurry/starbase/internal/pkg/apperror"
 	"github.com/jincurry/starbase/internal/service"
 )
 
@@ -22,10 +21,10 @@ func (h *PreferencesHandler) Get(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	p, err := h.prefs.Get(c.Request.Context(), u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	c.JSON(200, p)
 }
 
 func (h *PreferencesHandler) Update(c *gin.Context) {
@@ -35,13 +34,13 @@ func (h *PreferencesHandler) Update(c *gin.Context) {
 		AutoArchiveOnUnstar *bool `json:"auto_archive_on_unstar"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		respond(c, apperror.BadRequest("Invalid request body"))
 		return
 	}
 	p, err := h.prefs.Update(c.Request.Context(), u.ID, body.StaleInboxDays, body.AutoArchiveOnUnstar)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		respond(c, apperror.BadRequest(err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	c.JSON(200, p)
 }

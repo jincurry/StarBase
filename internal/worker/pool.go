@@ -99,6 +99,10 @@ func isFatal(err error) bool {
 	if errors.Is(err, github.ErrUnauthorized) {
 		return true
 	}
+	// User disconnected — there's no token to retry with.
+	if errors.Is(err, service.ErrDisconnected) {
+		return true
+	}
 	return false
 }
 

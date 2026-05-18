@@ -5,6 +5,7 @@ import { fmtNumber, fmtRelative } from "@/lib/mock-data";
 import { Icon } from "./icons";
 import { LangDot, STATUSES, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
+import { useIsTight } from "@/lib/use-window-width";
 
 interface StarRowProps {
   star: Star;
@@ -24,7 +25,7 @@ export function StarRow({
   const isCompact = density === "compact";
   const { tagById } = useTagsCtx();
   const tags = star.tags.map((t) => tagById(t)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
-  const tight = typeof window !== "undefined" && window.innerWidth < 1100;
+  const tight = useIsTight();
   return (
     <div
       onClick={(e) => {

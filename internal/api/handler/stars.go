@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/jincurry/starbase/internal/api/middleware"
 	"github.com/jincurry/starbase/internal/model"
+	"github.com/jincurry/starbase/internal/pkg/apperror"
 	"github.com/jincurry/starbase/internal/service"
 )
 
@@ -44,7 +44,7 @@ func (h *StarsHandler) List(c *gin.Context) {
 	}
 	stars, total, err := h.star.List(c.Request.Context(), u.ID, f)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		respond(c, apperror.BadRequest(err.Error()))
 		return
 	}
 	c.JSON(200, gin.H{"items": stars, "total": total, "page": f.Page, "page_size": f.PageSize})
@@ -58,7 +58,7 @@ func (h *StarsHandler) Inbox(c *gin.Context) {
 	}
 	stars, total, err := h.star.List(c.Request.Context(), u.ID, f)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 	c.JSON(200, gin.H{"items": stars, "total": total})
@@ -68,12 +68,12 @@ func (h *StarsHandler) Get(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": "bad id"})
+		respond(c, apperror.BadRequest("Invalid star id"))
 		return
 	}
 	star, err := h.star.Get(c.Request.Context(), u.ID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": "not_found", "message": err.Error()})
+		respond(c, notFoundFromErr(err, "Star not found"))
 		return
 	}
 	c.JSON(200, star)
@@ -83,7 +83,7 @@ func (h *StarsHandler) Patch(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": "bad id"})
+		respond(c, apperror.BadRequest("Invalid star id"))
 		return
 	}
 	var body struct {
@@ -92,14 +92,14 @@ func (h *StarsHandler) Patch(c *gin.Context) {
 		Watching *bool   `json:"watching"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		respond(c, apperror.BadRequest("Invalid request body"))
 		return
 	}
 	star, err := h.star.Patch(c.Request.Context(), u.ID, id, service.Patch{
 		Status: body.Status, Note: body.Note, Watching: body.Watching,
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": err.Error()})
+		respond(c, notFoundFromErr(err, err.Error()))
 		return
 	}
 	c.JSON(200, star)
@@ -109,22 +109,22 @@ func (h *StarsHandler) View(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.star.MarkViewed(c.Request.Context(), u.ID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.Status(204)
 }
 
 func (h *StarsHandler) Readme(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": "bad_request", "message": "bad id"})
+		respond(c, apperror.BadRequest("Invalid star id"))
 		return
 	}
 	md, err := h.star.Readme(c.Request.Context(), u.ID, id)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"code": "upstream_failed", "message": err.Error()})
+		respond(c, apperror.New(502, "upstream_failed", "Couldn't fetch README from GitHub", ""))
 		return
 	}
 	c.JSON(200, gin.H{"content": md})
@@ -134,7 +134,7 @@ func (h *StarsHandler) Stats(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	stats, err := h.star.Stats(c.Request.Context(), u.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "internal", "message": err.Error()})
+		respond(c, err)
 		return
 	}
 	c.JSON(200, stats)
