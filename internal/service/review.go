@@ -66,22 +66,15 @@ func (s *ReviewService) byIDs(ctx context.Context, userID int64, idQuery string)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	ids := []int64{}
 	for rows.Next() {
 		var id int64
 		if err := rows.Scan(&id); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		ids = append(ids, id)
 	}
-	out := []model.Star{}
-	for _, id := range ids {
-		st, err := s.star.Get(ctx, userID, id)
-		if err != nil {
-			continue
-		}
-		out = append(out, *st)
-	}
-	return out, nil
+	rows.Close()
+	return s.star.GetByIDs(ctx, userID, ids)
 }

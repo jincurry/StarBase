@@ -22,37 +22,48 @@ export function useMe() {
   });
 }
 
+// useAuthed is the single source of truth for "do I have a signed-in
+// user?" — every other authed query gates on this so we don't fire
+// background requests in demo mode and pile up 401s.
+function useAuthed(): boolean {
+  return !!useMe().data?.user;
+}
+
 export function useStars() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["stars", "all"],
     queryFn: async () => {
-      // Pull a generous batch — UI does its own client-side filtering.
-      // 1000 covers heavy users; backend caps anyway.
       const params = new URLSearchParams({ status: "all", page_size: "1000" });
       const res = await api.listStars(params);
       return (res.items || []).map(mapStar);
     },
+    enabled: authed,
     refetchOnWindowFocus: false,
     staleTime: 30_000,
   });
 }
 
 export function useTags() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["tags"],
     queryFn: async () => {
       const res = await api.listTags();
       return (res.items || []).map(mapTag);
     },
+    enabled: authed,
     refetchOnWindowFocus: false,
     staleTime: 60_000,
   });
 }
 
 export function usePreferences() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["preferences"],
     queryFn: () => api.getPrefs(),
+    enabled: authed,
     staleTime: 60_000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -72,10 +83,12 @@ export function useUpdatePreferences() {
 }
 
 export function useNotifications() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.notifications(),
-    refetchInterval: 60_000,
+    enabled: authed,
+    refetchInterval: authed ? 60_000 : false,
     refetchOnWindowFocus: false,
   });
 }
@@ -105,9 +118,11 @@ export function useMarkNotificationRead() {
 }
 
 export function useRateLimit() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["github-rate-limit"],
     queryFn: () => api.rateLimit(),
+    enabled: authed,
     staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -153,9 +168,11 @@ export function useDeleteAccount() {
 }
 
 export function useAIStatus() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["ai-status"],
     queryFn: () => api.aiStatus(),
+    enabled: authed,
     staleTime: 60 * 60_000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -202,6 +219,7 @@ export function useReadme(starId: number | undefined, enabled: boolean) {
 }
 
 export function useReview() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["review"],
     queryFn: async () => {
@@ -213,25 +231,30 @@ export function useReview() {
         rediscover: m(res.rediscover),
       };
     },
+    enabled: authed,
     refetchOnWindowFocus: false,
   });
 }
 
 export function useStats() {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["stats"],
     queryFn: () => api.stats(),
+    enabled: authed,
     refetchOnWindowFocus: false,
     staleTime: 30_000,
   });
 }
 
 export function useSyncStatus(pollWhileActive = true) {
+  const authed = useAuthed();
   return useQuery({
     queryKey: ["sync-status"],
     queryFn: () => api.syncStatus(),
+    enabled: authed,
     refetchInterval: (q) => {
-      if (!pollWhileActive) return false;
+      if (!pollWhileActive || !authed) return false;
       const job = q.state.data?.job;
       if (job && (job.status === "pending" || job.status === "running")) return 1500;
       return false;

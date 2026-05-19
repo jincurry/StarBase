@@ -112,7 +112,8 @@ export function StarsScreen({
     return () => clearTimeout(t);
   }, [filter, filtered.length, log]);
 
-  // "/" to focus the local search; "Escape" clears bulk selection.
+  // "/" focuses search; "Escape" clears any active bulk selection.
+  // Bind once, read state through the setState updater form.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -121,13 +122,13 @@ export function StarsScreen({
         e.preventDefault();
         searchRef.current?.focus();
         searchRef.current?.select();
-      } else if (e.key === "Escape" && checkedIds.size > 0) {
-        setCheckedIds(new Set());
+      } else if (e.key === "Escape") {
+        setCheckedIds((cur) => (cur.size > 0 ? new Set() : cur));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [checkedIds]);
+  }, []);
 
   const toggleCheck = (id: number, withShift: boolean) => {
     setCheckedIds((prev) => {

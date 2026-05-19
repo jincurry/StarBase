@@ -160,13 +160,16 @@ export function InboxScreen({
     });
   };
 
+  // Bind the keydown listener once. We read `checkedIds` via the updater
+  // form of setState so the closure doesn't need to re-bind on every change.
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && checkedIds.size > 0) setCheckedIds(new Set());
+      if (e.key !== "Escape") return;
+      setCheckedIds((cur) => (cur.size > 0 ? new Set() : cur));
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [checkedIds]);
+  }, []);
 
   const applyBulkStatus = (status: Star["status"]) => {
     checkedIds.forEach((id) => onSetStatus(id, status));

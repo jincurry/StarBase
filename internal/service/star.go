@@ -195,6 +195,84 @@ func (s *StarService) List(ctx context.Context, userID int64, f StarFilter) ([]m
 	return stars, total, nil
 }
 
+// GetByIDs fetches a batch of stars by their join-row IDs in a single
+// query (+ one query for tag hydration). Preserves the input order so
+// callers can drive presentation without re-sorting. Silently drops
+// IDs the user doesn't own.
+func (s *StarService) GetByIDs(ctx context.Context, userID int64, ids []int64) ([]model.Star, error) {
+	if len(ids) == 0 {
+		return []model.Star{}, nil
+	}
+	rows, err := s.db.Query(ctx, `
+		SELECT usr.id, usr.repo_id, usr.status, COALESCE(usr.note,''), usr.watching,
+		       usr.starred_at, usr.is_starred, usr.unstarred_at, usr.last_viewed_at,
+		       usr.last_reviewed_at, usr.updated_at,
+		       r.id, r.github_repo_id, r.owner, r.name, r.full_name, COALESCE(r.description,''),
+		       r.html_url, COALESCE(r.homepage,''), COALESCE(r.language,''),
+		       COALESCE(r.topics, '{}'::text[]),
+		       r.stargazers_count, r.forks_count, r.open_issues_count,
+		       COALESCE(r.license,''), r.archived, r.is_accessible,
+		       r.metadata_synced_at, r.repo_updated_at, r.repo_pushed_at
+		FROM user_starred_repos usr JOIN repos r ON r.id = usr.repo_id
+		WHERE usr.user_id = $1 AND usr.id = ANY($2)
+	`, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	byID := make(map[int64]*model.Star, len(ids))
+	for rows.Next() {
+		var st model.Star
+		st.UserID = userID
+		if err := rows.Scan(
+			&st.ID, &st.RepoID, &st.Status, &st.Note, &st.Watching,
+			&st.StarredAt, &st.IsStarred, &st.UnstarredAt, &st.LastViewedAt,
+			&st.LastReviewedAt, &st.UpdatedAt,
+			&st.Repo.ID, &st.Repo.GitHubRepoID, &st.Repo.Owner, &st.Repo.Name,
+			&st.Repo.FullName, &st.Repo.Description, &st.Repo.HTMLURL, &st.Repo.Homepage,
+			&st.Repo.Language, &st.Repo.Topics,
+			&st.Repo.StargazersCount, &st.Repo.ForksCount, &st.Repo.OpenIssuesCount,
+			&st.Repo.License, &st.Repo.Archived, &st.Repo.IsAccessible,
+			&st.Repo.MetadataSyncedAt, &st.Repo.RepoUpdatedAt, &st.Repo.RepoPushedAt,
+		); err != nil {
+			return nil, err
+		}
+		st.Tags = []int64{}
+		byID[st.ID] = &st
+	}
+
+	// Hydrate tags in one shot.
+	tagRows, err := s.db.Query(ctx, `
+		SELECT user_starred_repo_id, tag_id
+		FROM user_starred_repo_tags
+		WHERE user_starred_repo_id = ANY($1)
+	`, ids)
+	if err != nil {
+		return nil, err
+	}
+	for tagRows.Next() {
+		var rid, tid int64
+		if err := tagRows.Scan(&rid, &tid); err != nil {
+			tagRows.Close()
+			return nil, err
+		}
+		if st, ok := byID[rid]; ok {
+			st.Tags = append(st.Tags, tid)
+		}
+	}
+	tagRows.Close()
+
+	// Return in the caller's order, dropping any IDs that didn't match.
+	out := make([]model.Star, 0, len(ids))
+	for _, id := range ids {
+		if st, ok := byID[id]; ok {
+			out = append(out, *st)
+		}
+	}
+	return out, nil
+}
+
 func (s *StarService) Get(ctx context.Context, userID, starID int64) (*model.Star, error) {
 	var st model.Star
 	st.UserID = userID

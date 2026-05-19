@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useWindowWidth } from "@/lib/use-window-width";
 import type { Star, User } from "@/lib/types";
 import { NOTIFICATIONS, STARS } from "@/lib/mock-data";
+import { api, HttpError } from "@/lib/api";
 import {
-  HttpError,
   useAttachTag,
   useDetachTag,
   useEventLogger,
@@ -286,7 +286,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
     log("inbox_repo_opened", { star_id: id, position: pos });
     if (authed) {
       // fire-and-forget view marker
-      import("@/lib/api").then(({ api }) => api.view(id).catch(() => {}));
+      api.view(id).catch(() => {});
     }
   };
 
