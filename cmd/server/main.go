@@ -55,7 +55,8 @@ func main() {
 	account := service.NewAccount(pool)
 
 	r := api.New(api.Deps{
-		Cfg: cfg, GH: gh, Auth: auth, Sync: syncSvc, Star: star,
+		Cfg: cfg, DB: pool, Log: log,
+		GH: gh, Auth: auth, Sync: syncSvc, Star: star,
 		Tag: tag, Review: review, Event: event, AI: ai,
 		Prefs: prefs, Notif: notif, Account: account,
 	})

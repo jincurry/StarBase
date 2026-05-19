@@ -1,11 +1,12 @@
 package api
 
 import (
-	"net/http"
+	"log/slog"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jincurry/starbase/internal/api/handler"
 	"github.com/jincurry/starbase/internal/api/middleware"
@@ -16,6 +17,8 @@ import (
 
 type Deps struct {
 	Cfg     *config.Config
+	DB      *pgxpool.Pool
+	Log     *slog.Logger
 	GH      *github.Client
 	Auth    *service.AuthService
 	Sync    *service.SyncService
@@ -31,12 +34,20 @@ type Deps struct {
 
 func New(d Deps) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
+	log := d.Log
+	if log == nil {
+		log = slog.Default()
+	}
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middleware.RequestID())
+	r.Use(middleware.AccessLog(log))
+	r.Use(middleware.SecurityHeaders(d.Cfg.CookieSecure))
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{d.Cfg.WebURL},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", middleware.RequestIDHeader},
+		ExposeHeaders:    []string{middleware.RequestIDHeader},
 		AllowCredentials: true,
 	}))
 	// CSRF — reject state-changing requests whose Origin doesn't match
@@ -44,7 +55,9 @@ func New(d Deps) *gin.Engine {
 	// PublicURL itself).
 	r.Use(middleware.CSRFOrigin([]string{d.Cfg.WebURL, d.Cfg.PublicURL}))
 
-	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
+	healthH := handler.NewHealth(d.DB)
+	r.GET("/healthz", healthH.Live)
+	r.GET("/readyz", healthH.Ready)
 
 	authH := handler.NewAuth(d.Cfg, d.Auth, d.Sync)
 	syncH := handler.NewSync(d.Sync)
