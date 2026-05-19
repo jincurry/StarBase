@@ -86,7 +86,7 @@ func (s *TagService) Update(ctx context.Context, userID, tagID int64, name, colo
 		return nil, err
 	}
 	if tag.RowsAffected() == 0 {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	var t model.Tag
 	err = s.db.QueryRow(ctx, `
@@ -105,7 +105,7 @@ func (s *TagService) Delete(ctx context.Context, userID, tagID int64) error {
 		return err
 	}
 	if tag.RowsAffected() == 0 {
-		return errors.New("not found")
+		return ErrNotFound
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (s *TagService) Attach(ctx context.Context, userID, starID, tagID int64) er
 		return err
 	}
 	if !ok {
-		return errors.New("not found")
+		return ErrNotFound
 	}
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO user_starred_repo_tags (user_starred_repo_id, tag_id) VALUES ($1, $2)
@@ -136,7 +136,7 @@ func (s *TagService) Detach(ctx context.Context, userID, starID, tagID int64) er
 	if err := s.db.QueryRow(ctx, `SELECT 1 FROM user_starred_repos WHERE id=$1 AND user_id=$2`,
 		starID, userID).Scan(new(int)); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return errors.New("not found")
+			return ErrNotFound
 		}
 		return err
 	}

@@ -75,7 +75,7 @@ type Summary struct {
 // toward the user's existing tag vocabulary.
 func (a *AIService) SuggestTags(ctx context.Context, userID, starID int64) (*TagSuggestion, error) {
 	if !a.Enabled() {
-		return nil, errors.New("AI features not configured")
+		return nil, ErrAIDisabled
 	}
 	repoID, repoFullName, desc, topics, err := a.repoInfo(ctx, userID, starID)
 	if err != nil {
@@ -111,7 +111,7 @@ func (a *AIService) SuggestTags(ctx context.Context, userID, starID int64) (*Tag
 // Summarize returns a 2-3 sentence summary of the repo's README.
 func (a *AIService) Summarize(ctx context.Context, userID, starID int64) (*Summary, error) {
 	if !a.Enabled() {
-		return nil, errors.New("AI features not configured")
+		return nil, ErrAIDisabled
 	}
 	repoID, repoFullName, desc, _, err := a.repoInfo(ctx, userID, starID)
 	if err != nil {

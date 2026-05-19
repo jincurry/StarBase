@@ -301,7 +301,7 @@ func (s *StarService) Get(ctx context.Context, userID, starID int64) (*model.Sta
 		&st.Repo.MetadataSyncedAt, &st.Repo.RepoUpdatedAt, &st.Repo.RepoPushedAt,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("not found")
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -342,7 +342,7 @@ func (s *StarService) Patch(ctx context.Context, userID, starID int64, p Patch) 
 	idx := 3
 	if p.Status != nil {
 		if !model.ValidStatus(*p.Status) {
-			return nil, errors.New("invalid status")
+			return nil, ErrInvalidStatus
 		}
 		sets = append(sets, fmt.Sprintf("status = $%d", idx))
 		args = append(args, *p.Status)
@@ -365,7 +365,7 @@ func (s *StarService) Patch(ctx context.Context, userID, starID int64, p Patch) 
 		return nil, err
 	}
 	if tag.RowsAffected() == 0 {
-		return nil, errors.New("not found")
+		return nil, ErrNotFound
 	}
 	return s.Get(ctx, userID, starID)
 }
@@ -513,7 +513,7 @@ func (s *StarService) PublicByToken(ctx context.Context, token string) (*PublicS
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("not found")
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -548,10 +548,9 @@ func (s *StarService) Readme(ctx context.Context, userID, starID int64) (string,
 
 // refreshMetadata pulls fresh repo info from GitHub and updates the repos row.
 func (s *StarService) refreshMetadata(ctx context.Context, userID int64, fullName string) {
-	if s.metaCache.seenRecently(fullName) {
+	if !s.metaCache.markIfFresh(fullName) {
 		return
 	}
-	s.metaCache.mark(fullName)
 	token, err := s.auth.AccessTokenFor(ctx, userID)
 	if err != nil {
 		return

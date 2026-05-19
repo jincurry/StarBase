@@ -58,7 +58,7 @@ func (h *TagsHandler) Update(c *gin.Context) {
 	}
 	t, err := h.tag.Update(c.Request.Context(), u.ID, id, body.Name, body.Color)
 	if err != nil {
-		respond(c, notFoundFromErr(err, err.Error()))
+		respond(c, err)
 		return
 	}
 	c.JSON(200, t)
@@ -68,7 +68,7 @@ func (h *TagsHandler) Delete(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err := h.tag.Delete(c.Request.Context(), u.ID, id); err != nil {
-		respond(c, notFoundFromErr(err, "Tag not found"))
+		respond(c, err)
 		return
 	}
 	c.Status(204)
@@ -85,7 +85,7 @@ func (h *TagsHandler) Attach(c *gin.Context) {
 		return
 	}
 	if err := h.tag.Attach(c.Request.Context(), u.ID, starID, body.TagID); err != nil {
-		respond(c, notFoundFromErr(err, err.Error()))
+		respond(c, err)
 		return
 	}
 	c.Status(204)
@@ -96,7 +96,7 @@ func (h *TagsHandler) Detach(c *gin.Context) {
 	starID, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	tagID, _ := strconv.ParseInt(c.Param("tagId"), 10, 64)
 	if err := h.tag.Detach(c.Request.Context(), u.ID, starID, tagID); err != nil {
-		respond(c, notFoundFromErr(err, err.Error()))
+		respond(c, err)
 		return
 	}
 	c.Status(204)

@@ -73,7 +73,7 @@ func (h *StarsHandler) Get(c *gin.Context) {
 	}
 	star, err := h.star.Get(c.Request.Context(), u.ID, id)
 	if err != nil {
-		respond(c, notFoundFromErr(err, "Star not found"))
+		respond(c, err)
 		return
 	}
 	c.JSON(200, star)
@@ -99,7 +99,7 @@ func (h *StarsHandler) Patch(c *gin.Context) {
 		Status: body.Status, Note: body.Note, Watching: body.Watching,
 	})
 	if err != nil {
-		respond(c, notFoundFromErr(err, err.Error()))
+		respond(c, err)
 		return
 	}
 	c.JSON(200, star)

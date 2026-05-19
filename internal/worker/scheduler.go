@@ -22,24 +22,28 @@ type Scheduler struct {
 	db     *pgxpool.Pool
 	sync   *service.SyncService
 	notif  *service.NotificationService
+	keep   *service.HousekeepingService
 	log    *slog.Logger
 
-	IncrementalInterval time.Duration
-	IncrementalMinAge   time.Duration
-	ReconcileInterval   time.Duration
-	StaleScanInterval   time.Duration
+	IncrementalInterval  time.Duration
+	IncrementalMinAge    time.Duration
+	ReconcileInterval    time.Duration
+	StaleScanInterval    time.Duration
+	HousekeepingInterval time.Duration
 }
 
-func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, notif *service.NotificationService, log *slog.Logger) *Scheduler {
+func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, notif *service.NotificationService, keep *service.HousekeepingService, log *slog.Logger) *Scheduler {
 	return &Scheduler{
-		db:                  db,
-		sync:                sync,
-		notif:               notif,
-		log:                 log,
-		IncrementalInterval: 30 * time.Minute,
-		IncrementalMinAge:   2 * time.Hour,
-		ReconcileInterval:   24 * time.Hour,
-		StaleScanInterval:   6 * time.Hour,
+		db:                   db,
+		sync:                 sync,
+		notif:                notif,
+		keep:                 keep,
+		log:                  log,
+		IncrementalInterval:  30 * time.Minute,
+		IncrementalMinAge:    2 * time.Hour,
+		ReconcileInterval:    24 * time.Hour,
+		StaleScanInterval:    6 * time.Hour,
+		HousekeepingInterval: 12 * time.Hour,
 	}
 }
 
@@ -49,6 +53,22 @@ func (s *Scheduler) Run(ctx context.Context) {
 	go s.loop(ctx, "incremental", 5*time.Minute, s.IncrementalInterval, s.tickIncremental)
 	go s.loop(ctx, "reconcile", 30*time.Minute, s.ReconcileInterval, s.tickReconcile)
 	go s.loop(ctx, "stale", 10*time.Minute, s.StaleScanInterval, s.tickStale)
+	go s.loop(ctx, "housekeeping", 2*time.Minute, s.HousekeepingInterval, s.tickHousekeeping)
+}
+
+func (s *Scheduler) tickHousekeeping(ctx context.Context) error {
+	stats, err := s.keep.Run(ctx)
+	if err != nil {
+		return err
+	}
+	if stats.ExpiredSessions+stats.OldEvents+stats.OldAIOutputs > 0 {
+		s.log.Info("housekeeping",
+			"expired_sessions", stats.ExpiredSessions,
+			"old_events", stats.OldEvents,
+			"old_ai_outputs", stats.OldAIOutputs,
+		)
+	}
+	return nil
 }
 
 // tickStale scans every user whose inbox contains items older than their
