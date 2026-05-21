@@ -7,6 +7,7 @@ import { Icon } from "./icons";
 import { Kbd, STATUSES, StatusPill, TAG_COLOR } from "./primitives";
 import { useTagsCtx } from "./providers";
 import { useStats } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
 
 const labelStyle: CSSProperties = {
   fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)",
@@ -27,18 +28,19 @@ const ghostBtnX: CSSProperties = {
 // ============= ShortcutsModal =============
 
 export function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const groups = [
-    { name: "Navigation", items: [
-      ["j  /  ↓", "Next item"], ["k  /  ↑", "Previous item"],
-      ["o / Enter", "Open detail"], ["esc", "Close detail"],
-      ["g i", "Go to Inbox"], ["g s", "Go to Stars"], ["g r", "Go to Review"],
+    { name: t("dialog.shortcuts.group.navigation"), items: [
+      ["j  /  ↓", t("dialog.shortcuts.next")], ["k  /  ↑", t("dialog.shortcuts.prev")],
+      ["o / Enter", t("dialog.shortcuts.open")], ["esc", t("dialog.shortcuts.close")],
+      ["g i", t("dialog.shortcuts.goto_inbox")], ["g s", t("dialog.shortcuts.goto_stars")], ["g r", t("dialog.shortcuts.goto_review")],
     ] },
-    { name: "Triage", items: [
-      ["s", "Mark as kept"], ["r", "Mark reviewing"],
-      ["d", "Mark dropped"], ["e", "Archive"],
+    { name: t("dialog.shortcuts.group.triage"), items: [
+      ["s", t("dialog.shortcuts.mark_kept")], ["r", t("dialog.shortcuts.mark_reviewing")],
+      ["d", t("dialog.shortcuts.mark_dropped")], ["e", t("dialog.shortcuts.archive")],
     ] },
-    { name: "Edit", items: [
-      ["t", "Edit tags"], ["n", "Edit note"], ["/", "Focus search"],
+    { name: t("dialog.shortcuts.group.edit"), items: [
+      ["t", t("dialog.shortcuts.edit_tags")], ["n", t("dialog.shortcuts.edit_note")], ["/", t("dialog.shortcuts.focus_search")],
     ] },
   ];
   return (
@@ -52,7 +54,7 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
         boxShadow: "0 20px 60px rgba(0,0,0,0.18)", border: "1px solid var(--border)",
       }}>
         <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Keyboard shortcuts</h3>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{t("dialog.shortcuts.title")}</h3>
           <button onClick={onClose} style={{
             marginLeft: "auto", background: "transparent", border: "none",
             color: "var(--ink-3)", cursor: "pointer", padding: 4, display: "flex",
@@ -149,6 +151,7 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
   const [format, setFormat] = useState<"markdown" | "json" | "opml">("markdown");
   const [scope, setScope] = useState<"all" | "kept" | "with-notes" | "inbox">("kept");
   const { tagById } = useTagsCtx();
+  const t = useT();
 
   const counts = {
     all: stars.length,
@@ -192,8 +195,8 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
       }}>
         <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center" }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Export library</h2>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-3)" }}>Take your notes & tags anywhere</p>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t("dialog.export.title")}</h2>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-3)" }}>{t("dialog.export.subtitle")}</p>
           </div>
           <button onClick={onClose} style={{
             marginLeft: "auto", background: "transparent", border: "none",
@@ -202,12 +205,12 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", flex: 1, minHeight: 0 }}>
           <div style={{ padding: 16, borderRight: "1px solid var(--border)", overflow: "auto" }}>
-            <div style={labelStyle}>Format</div>
+            <div style={labelStyle}>{t("dialog.export.format")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
               {[
-                { v: "markdown", l: "Markdown vault", sub: "Per-repo .md files for Obsidian / Notion" },
-                { v: "json", l: "JSON", sub: "Machine-readable with notes & tags" },
-                { v: "opml", l: "OPML", sub: "Outliner-compatible feed export" },
+                { v: "markdown", l: t("dialog.export.format.md"), sub: t("dialog.export.format.md_sub") },
+                { v: "json", l: t("dialog.export.format.json"), sub: t("dialog.export.format.json_sub") },
+                { v: "opml", l: t("dialog.export.format.opml"), sub: t("dialog.export.format.opml_sub") },
               ].map((o) => (
                 <button key={o.v} onClick={() => setFormat(o.v as any)} style={{
                   display: "block", textAlign: "left", padding: "8px 10px",
@@ -221,13 +224,13 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
                 </button>
               ))}
             </div>
-            <div style={labelStyle}>Scope</div>
+            <div style={labelStyle}>{t("dialog.export.scope")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {[
-                { v: "kept", l: "Kept only", n: counts.kept },
-                { v: "with-notes", l: "Has notes", n: counts["with-notes"] },
-                { v: "inbox", l: "Inbox", n: counts.inbox },
-                { v: "all", l: "Everything", n: counts.all },
+                { v: "kept", l: t("dialog.export.scope.kept"), n: counts.kept },
+                { v: "with-notes", l: t("dialog.export.scope.with_notes"), n: counts["with-notes"] },
+                { v: "inbox", l: t("dialog.export.scope.inbox"), n: counts.inbox },
+                { v: "all", l: t("dialog.export.scope.all"), n: counts.all },
               ].map((o) => (
                 <label key={o.v} style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "5px 8px",
@@ -249,7 +252,7 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
               <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 {format === "markdown" ? "stars.md" : format === "json" ? "stars.json" : "stars.opml"}
               </span>
-              <span>preview · first 3 of {selected.length}</span>
+              <span>{t("dialog.export.preview_prefix")} {selected.length}</span>
             </div>
             <pre style={{
               flex: 1, overflow: "auto", margin: 0, padding: 16,
@@ -264,11 +267,11 @@ export function ExportDialog({ stars, onClose }: { stars: Star[]; onClose: () =>
           background: "var(--surface-1)",
           display: "flex", alignItems: "center", gap: 10,
         }}>
-          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{selected.length} repos · {format.toUpperCase()}</span>
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>{selected.length} {t("dialog.export.repos_suffix")} · {format.toUpperCase()}</span>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={ghostBtnX}>Cancel</button>
+          <button onClick={onClose} style={ghostBtnX}>{t("common.cancel")}</button>
           <button style={primaryBtnX} onClick={onDownload}>
-            <Icon name="extLink" size={11} /> Download
+            <Icon name="extLink" size={11} /> {t("common.download")}
           </button>
         </div>
       </div>
@@ -291,6 +294,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
 }) {
   const week = weekLabel();
   const statsQ = useStats();
+  const t = useT();
   const triaged = statsQ.data?.processed_this_week ?? 0;
   const kept = statsQ.data?.kept ?? stars.filter((s) => s.status === "kept").length;
   const dropped = statsQ.data?.dropped ?? 0;
@@ -316,10 +320,10 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
           color: "oklch(28% 0.08 275)", position: "relative",
         }}>
           <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.7 }}>
-            Weekly digest · {week}
+            {t("dialog.digest.heading")} · {week}
           </div>
           <h2 style={{ margin: "6px 0 0", fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" }}>
-            Your week in stars
+            {t("dialog.digest.title")}
           </h2>
           <button onClick={onClose} style={{
             position: "absolute", top: 16, right: 16,
@@ -329,21 +333,21 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
         </div>
         <div style={{ overflow: "auto", padding: "18px 24px 24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 22 }}>
-            <DigestStat n={triaged} label="triaged" tone="accent" />
-            <DigestStat n={kept} label="kept this week" tone="green" />
-            <DigestStat n={dropped} label="dropped" tone="muted" />
+            <DigestStat n={triaged} label={t("dialog.digest.stat.triaged")} tone="accent" />
+            <DigestStat n={kept} label={t("dialog.digest.stat.kept")} tone="green" />
+            <DigestStat n={dropped} label={t("dialog.digest.stat.dropped")} tone="muted" />
           </div>
-          <DigestSection title="Worth a second look">
+          <DigestSection title={t("dialog.digest.worth_look")}>
             <p style={{ fontSize: 12.5, color: "var(--ink-2)", margin: "0 0 10px" }}>
-              These are still sitting in your inbox. Should they keep waiting?
+              {t("dialog.digest.worth_look_body")}
             </p>
             {newlyStarred.map((s) => (
               <DigestRow key={s.id} star={s} onClick={() => { onOpenStar(s.id); onClose(); }} />
             ))}
           </DigestSection>
-          <DigestSection title="Quiet but kept">
+          <DigestSection title={t("dialog.digest.quiet_kept")}>
             <p style={{ fontSize: 12.5, color: "var(--ink-2)", margin: "0 0 10px" }}>
-              Repos you trust — no notes this month. Could be archive candidates.
+              {t("dialog.digest.quiet_kept_body")}
             </p>
             {trending.map((s) => (
               <DigestRow key={s.id} star={s} onClick={() => { onOpenStar(s.id); onClose(); }} />
@@ -356,7 +360,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
             display: "flex", alignItems: "center", gap: 10,
           }}>
             <Icon name="sparkle" size={14} />
-            <span>You're on a 4-week streak of inbox-zero by Friday. Keep it up.</span>
+            <span>{t("dialog.digest.streak")}</span>
           </div>
         </div>
       </div>
@@ -425,6 +429,7 @@ export function BulkActionBar({
 }) {
   const [showTag, setShowTag] = useState(false);
   const { tags: allTags } = useTagsCtx();
+  const t = useT();
   return (
     <div style={{
       position: "absolute", left: "50%", bottom: 16, transform: "translateX(-50%)", zIndex: 25,
@@ -435,15 +440,15 @@ export function BulkActionBar({
       fontSize: 12.5, fontFamily: "inherit",
     }}>
       <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{count}</span>
-      <span style={{ opacity: 0.7 }}>selected</span>
+      <span style={{ opacity: 0.7 }}>{t("dialog.bulk.selected")}</span>
       <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.15)", margin: "0 4px" }} />
-      <BulkBtn onClick={() => onSetStatus("kept")} dot={STATUSES.kept.dot}>Keep</BulkBtn>
-      <BulkBtn onClick={() => onSetStatus("reviewing")} dot={STATUSES.reviewing.dot}>Reviewing</BulkBtn>
-      <BulkBtn onClick={() => onSetStatus("dropped")} dot={STATUSES.dropped.dot}>Drop</BulkBtn>
-      <BulkBtn onClick={() => onSetStatus("archived")} dot={STATUSES.archived.dot}>Archive</BulkBtn>
+      <BulkBtn onClick={() => onSetStatus("kept")} dot={STATUSES.kept.dot}>{t("dialog.bulk.keep")}</BulkBtn>
+      <BulkBtn onClick={() => onSetStatus("reviewing")} dot={STATUSES.reviewing.dot}>{t("dialog.bulk.reviewing")}</BulkBtn>
+      <BulkBtn onClick={() => onSetStatus("dropped")} dot={STATUSES.dropped.dot}>{t("dialog.bulk.drop")}</BulkBtn>
+      <BulkBtn onClick={() => onSetStatus("archived")} dot={STATUSES.archived.dot}>{t("dialog.bulk.archive")}</BulkBtn>
       <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.15)", margin: "0 2px" }} />
       <div style={{ position: "relative" }}>
-        <BulkBtn onClick={() => setShowTag((v) => !v)}><Icon name="tag" size={11} /> Tag</BulkBtn>
+        <BulkBtn onClick={() => setShowTag((v) => !v)}><Icon name="tag" size={11} /> {t("dialog.bulk.tag")}</BulkBtn>
         {showTag && (
           <div style={{
             position: "absolute", bottom: "calc(100% + 6px)", right: 0,
@@ -452,15 +457,15 @@ export function BulkActionBar({
             boxShadow: "var(--shadow-md)",
             display: "flex", flexDirection: "column", gap: 1,
           }}>
-            {allTags.slice(0, 8).map((t) => (
-              <button key={t.id} onClick={() => { onAddTag(t.id); setShowTag(false); }} style={{
+            {allTags.slice(0, 8).map((tg) => (
+              <button key={tg.id} onClick={() => { onAddTag(tg.id); setShowTag(false); }} style={{
                 display: "flex", alignItems: "center", gap: 7, padding: "5px 8px",
                 border: "none", background: "transparent", borderRadius: 4,
                 fontSize: 12, color: "var(--ink-1)", cursor: "pointer", textAlign: "left",
                 fontFamily: "inherit",
               }}>
-                <span style={{ width: 6, height: 6, borderRadius: 2, transform: "rotate(45deg)", background: TAG_COLOR[t.color] }} />
-                {t.name}
+                <span style={{ width: 6, height: 6, borderRadius: 2, transform: "rotate(45deg)", background: TAG_COLOR[tg.color] }} />
+                {tg.name}
               </button>
             ))}
           </div>
@@ -471,7 +476,7 @@ export function BulkActionBar({
         background: "transparent", border: "none", color: "rgba(255,255,255,0.7)",
         padding: "4px 8px", borderRadius: 6, fontSize: 11.5, cursor: "pointer",
         fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4,
-      }}>Clear <Kbd>esc</Kbd></button>
+      }}>{t("dialog.bulk.clear")} <Kbd>esc</Kbd></button>
     </div>
   );
 }
@@ -493,6 +498,7 @@ function BulkBtn({ children, onClick, dot }: { children: any; onClick: () => voi
 // ============= DigestBanner =============
 
 export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => void }) {
+  const t = useT();
   return (
     <div style={{
       margin: "10px 18px 0", padding: "10px 14px", borderRadius: 8,
@@ -507,14 +513,14 @@ export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDism
         display: "flex", alignItems: "center", justifyContent: "center",
       }}><Icon name="sparkle" size={14} /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(28% 0.08 275)" }}>Your weekly digest is ready</div>
-        <div style={{ fontSize: 11.5, color: "oklch(38% 0.05 275)" }}>23 triaged · 6 kept · 4 dropped this week</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(28% 0.08 275)" }}>{t("notif.digest_ready")}</div>
+        <div style={{ fontSize: 11.5, color: "oklch(38% 0.05 275)" }}>{t("notif.digest_summary")}</div>
       </div>
       <button onClick={onOpen} style={{
         padding: "5px 12px", borderRadius: 6, border: "none",
         background: "var(--accent)", color: "white",
         fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-      }}>Open digest</button>
+      }}>{t("notif.digest_open")}</button>
       <button onClick={onDismiss} title="Dismiss" style={{
         background: "transparent", border: "none", color: "var(--ink-3)",
         cursor: "pointer", padding: 4, display: "flex",

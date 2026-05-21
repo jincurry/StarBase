@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Star } from "@/lib/types";
 import { Icon } from "./icons";
 import { Kbd, StatusPill } from "./primitives";
+import { useT } from "@/lib/i18n/context";
 
 interface Props {
   stars: Star[];
@@ -22,20 +23,21 @@ export function CommandPalette({
   const [q, setQ] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const t = useT();
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { setActiveIdx(0); }, [q]);
 
   const commands = useMemo(() => [
-    { kind: "nav" as const, label: "Go to Inbox", hint: "g i", run: () => onGoto("inbox"), icon: "inbox" as const },
-    { kind: "nav" as const, label: "Go to Review", hint: "g r", run: () => onGoto("review"), icon: "review" as const },
-    { kind: "nav" as const, label: "Go to Stars", hint: "g s", run: () => onGoto("stars"), icon: "star" as const },
-    { kind: "nav" as const, label: "Settings", run: () => onGoto("settings"), icon: "settings" as const },
-    { kind: "action" as const, label: "Sync new stars from GitHub", hint: "sync", run: () => onAction("sync"), icon: "refresh" as const },
-    { kind: "action" as const, label: "Toggle dark mode", run: onToggleTheme, icon: "sparkle" as const },
-    { kind: "action" as const, label: "Export library…", run: onExport, icon: "extLink" as const },
-    { kind: "action" as const, label: "Open weekly digest", run: onDigest, icon: "log" as const },
-    { kind: "action" as const, label: "Show keyboard shortcuts", hint: "?", run: () => onAction("shortcuts"), icon: "settings" as const },
-  ], [onGoto, onAction, onToggleTheme, onExport, onDigest]);
+    { kind: "nav" as const, label: t("dialog.cmdk.action.goto_inbox"), hint: "g i", run: () => onGoto("inbox"), icon: "inbox" as const },
+    { kind: "nav" as const, label: t("dialog.cmdk.action.goto_review"), hint: "g r", run: () => onGoto("review"), icon: "review" as const },
+    { kind: "nav" as const, label: t("dialog.cmdk.action.goto_stars"), hint: "g s", run: () => onGoto("stars"), icon: "star" as const },
+    { kind: "nav" as const, label: t("dialog.cmdk.action.settings"), run: () => onGoto("settings"), icon: "settings" as const },
+    { kind: "action" as const, label: t("dialog.cmdk.action.sync"), hint: "sync", run: () => onAction("sync"), icon: "refresh" as const },
+    { kind: "action" as const, label: t("dialog.cmdk.action.theme"), run: onToggleTheme, icon: "sparkle" as const },
+    { kind: "action" as const, label: t("dialog.cmdk.action.export"), run: onExport, icon: "extLink" as const },
+    { kind: "action" as const, label: t("dialog.cmdk.action.digest"), run: onDigest, icon: "log" as const },
+    { kind: "action" as const, label: t("dialog.cmdk.action.shortcuts"), hint: "?", run: () => onAction("shortcuts"), icon: "settings" as const },
+  ], [onGoto, onAction, onToggleTheme, onExport, onDigest, t]);
 
   const items = useMemo(() => {
     const all: any[] = [];
@@ -79,8 +81,10 @@ export function CommandPalette({
     return () => window.removeEventListener("keydown", onKey);
   }, [items, activeIdx]);
 
-  const groups: Record<string, any[]> = { Commands: [], Stars: [] };
-  items.forEach((it) => groups[it.kind === "star" ? "Stars" : "Commands"].push(it));
+  const cmdsLabel = t("dialog.cmdk.commands");
+  const starsLabel = t("dialog.cmdk.stars");
+  const groups: Record<string, any[]> = { [cmdsLabel]: [], [starsLabel]: [] };
+  items.forEach((it) => groups[it.kind === "star" ? starsLabel : cmdsLabel].push(it));
   let flatIdx = -1;
 
   return (
@@ -99,7 +103,7 @@ export function CommandPalette({
         <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
           <Icon name="search" size={15} />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="Search repos, type a command…"
+            placeholder={t("dialog.cmdk.placeholder")}
             style={{
               flex: 1, border: "none", outline: "none", background: "transparent",
               fontSize: 14, color: "var(--ink-0)", fontFamily: "inherit",
@@ -156,7 +160,7 @@ export function CommandPalette({
           })}
           {items.length === 0 && (
             <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
-              No matches for "{q}"
+              {t("dialog.cmdk.no_match")} "{q}"
             </div>
           )}
         </div>
@@ -166,9 +170,9 @@ export function CommandPalette({
           display: "flex", alignItems: "center", gap: 14,
           background: "var(--surface-1)",
         }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Kbd>↑</Kbd><Kbd>↓</Kbd> navigate</span>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Kbd>↵</Kbd> select</span>
-          <span style={{ marginLeft: "auto" }}>{items.length} result{items.length === 1 ? "" : "s"}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Kbd>↑</Kbd><Kbd>↓</Kbd> {t("dialog.cmdk.navigate")}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Kbd>↵</Kbd> {t("dialog.cmdk.select")}</span>
+          <span style={{ marginLeft: "auto" }}>{items.length} {items.length === 1 ? t("dialog.cmdk.result") : t("dialog.cmdk.results")}</span>
         </div>
       </div>
     </div>

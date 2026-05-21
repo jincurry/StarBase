@@ -5,6 +5,7 @@ import type { Notification } from "@/lib/types";
 import { BellIcon, Icon } from "./icons";
 import { fmtRelative } from "@/lib/mock-data";
 import { useMarkNotificationRead, useNotifications } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
 
 interface Props {
   // Optional fallback — used in demo mode when /api/notifications can't
@@ -38,6 +39,7 @@ export function NotificationsButton({ notifications: fallback, onMark, onOpenSta
 }
 
 function NotificationsDropdown({ notifications, onMark, onOpenStar }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -50,7 +52,7 @@ function NotificationsDropdown({ notifications, onMark, onOpenStar }: Props) {
   const unread = notifications.filter((n) => n.unread).length;
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button onClick={() => setOpen((o) => !o)} title="Notifications" style={{
+      <button onClick={() => setOpen((o) => !o)} title={t("common.notifications")} style={{
         position: "relative", display: "flex", alignItems: "center",
         padding: 6, borderRadius: 6, border: "1px solid var(--border)",
         background: "var(--surface-1)", color: "var(--ink-1)", cursor: "pointer",
@@ -78,15 +80,15 @@ function NotificationsDropdown({ notifications, onMark, onOpenStar }: Props) {
             padding: "10px 14px", borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>Activity</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{t("common.notifications")}</div>
             <button onClick={() => onMark("all")} style={{
               background: "transparent", border: "none", color: "var(--accent)",
               fontSize: 11.5, cursor: "pointer", fontFamily: "inherit",
-            }}>Mark all read</button>
+            }}>{t("common.mark_all_read")}</button>
           </div>
           {notifications.length === 0 ? (
             <div style={{ padding: 32, textAlign: "center", color: "var(--ink-3)", fontSize: 12.5 }}>
-              All quiet. Watched repos will show up here.
+              {t("notif.empty")}
             </div>
           ) : notifications.map((n) => (
             <button key={n.id} onClick={() => {

@@ -18,6 +18,8 @@ import {
   useUnshareMutation,
 } from "@/lib/queries";
 import { Markdown } from "./markdown";
+import { useT } from "@/lib/i18n/context";
+import type { TKey } from "@/lib/i18n/dict";
 
 interface DetailPanelProps {
   star?: Star;
@@ -37,6 +39,7 @@ export function DetailPanel({
   onToggleWatch, onOpenStar, onClose,
 }: DetailPanelProps) {
   const [tab, setTab] = useState<"overview" | "readme" | "notes" | "activity">("overview");
+  const t = useT();
   useEffect(() => { setTab("overview"); }, [star?.id]);
 
   if (!star) {
@@ -51,8 +54,8 @@ export function DetailPanel({
           background: "var(--surface-2)", color: "var(--ink-3)",
           display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12,
         }}><Icon name="star" size={20} /></div>
-        <div style={{ fontSize: 13.5, color: "var(--ink-2)", marginBottom: 4 }}>No repo selected</div>
-        <div style={{ fontSize: 12 }}>Pick one from the list, or press <Kbd>j</Kbd>/<Kbd>k</Kbd> to navigate.</div>
+        <div style={{ fontSize: 13.5, color: "var(--ink-2)", marginBottom: 4 }}>{t("detail.empty.title")}</div>
+        <div style={{ fontSize: 12 }}>{t("detail.empty.hint")} <Kbd>j</Kbd>/<Kbd>k</Kbd> {t("detail.empty.hint_to")}</div>
       </div>
     );
   }
@@ -81,13 +84,14 @@ function DetailHeader({ star, githubUrl, onClose, onToggleWatch }: {
   star: Star; githubUrl: string; onClose: () => void; onToggleWatch?: (id: number) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const t = useT();
   const cloneUrl = `git@github.com:${star.owner}/${star.name}.git`;
   return (
     <div style={{ padding: "12px 18px 14px", borderBottom: "1px solid var(--border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <StatusPill status={star.status} />
-        <span style={{ fontSize: 11, color: "var(--ink-3)" }}>starred {fmtRelative(star.starredAt)}</span>
-        <button onClick={onClose} title="Close (esc)" style={{
+        <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{t("detail.starred")} {fmtRelative(star.starredAt)}</span>
+        <button onClick={onClose} title={t("detail.close")} style={{
           marginLeft: "auto", background: "transparent", border: "none",
           color: "var(--ink-3)", cursor: "pointer", padding: 4, display: "flex", borderRadius: 4,
         }}><Icon name="x" size={14} /></button>
@@ -117,7 +121,7 @@ function DetailHeader({ star, githubUrl, onClose, onToggleWatch }: {
           background: "oklch(20% 0.01 270)", color: "white",
           fontSize: 12, fontWeight: 500,
         }}>
-          <GithubMark size={13} />Open on GitHub<Icon name="extLink" size={11} />
+          <GithubMark size={13} />{t("detail.open_on_github")}<Icon name="extLink" size={11} />
         </a>
         <button onClick={() => {
           navigator.clipboard?.writeText(cloneUrl);
@@ -129,10 +133,10 @@ function DetailHeader({ star, githubUrl, onClose, onToggleWatch }: {
           color: "var(--ink-1)", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
         }}>
           <Icon name={copied ? "check" : "fork"} size={11} />
-          {copied ? "Copied" : "Clone"}
+          {copied ? t("common.copied") : t("detail.clone")}
         </button>
         <button onClick={() => onToggleWatch?.(star.id)}
-          title={star.watching ? "Watching releases — click to stop" : "Watch for new releases"}
+          title={star.watching ? t("detail.watching_tooltip") : t("detail.watch_tooltip")}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: "5px 10px", borderRadius: 6,
@@ -142,10 +146,10 @@ function DetailHeader({ star, githubUrl, onClose, onToggleWatch }: {
             fontSize: 12, cursor: "pointer", fontFamily: "inherit",
           }}>
           <Icon name="eye" size={11} />
-          {star.watching ? "Watching" : "Watch"}
+          {star.watching ? t("detail.watching") : t("detail.watch")}
         </button>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: "var(--ink-3)" }}>pushed {fmtRelative(star.pushedAt)}</span>
+        <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{t("detail.pushed")} {fmtRelative(star.pushedAt)}</span>
       </div>
 
       <div style={{
@@ -188,11 +192,12 @@ function RepoAvatar({ owner }: { owner: string }) {
 function DetailTabs({ tab, setTab, hasNote }: {
   tab: string; setTab: (t: any) => void; hasNote: boolean;
 }) {
+  const t = useT();
   const tabs = [
-    { id: "overview", label: "Overview" },
-    { id: "readme", label: "README" },
-    { id: "notes", label: "Notes", indicator: hasNote },
-    { id: "activity", label: "Activity" },
+    { id: "overview", label: t("detail.tab.overview") },
+    { id: "readme", label: t("detail.tab.readme") },
+    { id: "notes", label: t("detail.tab.notes"), indicator: hasNote },
+    { id: "activity", label: t("detail.tab.activity") },
   ];
   return (
     <div style={{
@@ -229,7 +234,8 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
   onOpenStar?: (id: number) => void;
 }) {
   const { tags: allTags, tagById } = useTagsCtx();
-  const tags = star.tags.map((t) => tagById(t)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
+  const t = useT();
+  const tags = star.tags.map((id) => tagById(id)).filter(Boolean) as NonNullable<ReturnType<typeof tagById>>[];
   const [showTagMenu, setShowTagMenu] = useState(false);
   const [tagQuery, setTagQuery] = useState("");
   const createMut = useCreateTag();
@@ -238,9 +244,9 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
 
   const q = tagQuery.trim().toLowerCase();
   const availableTags = allTags
-    .filter((t) => !star.tags.includes(t.id))
-    .filter((t) => !q || t.name.toLowerCase().includes(q));
-  const exact = q ? allTags.find((t) => t.name.toLowerCase() === q) : undefined;
+    .filter((tg) => !star.tags.includes(tg.id))
+    .filter((tg) => !q || tg.name.toLowerCase().includes(q));
+  const exact = q ? allTags.find((tg) => tg.name.toLowerCase() === q) : undefined;
   const canCreate = q.length > 0 && !exact;
 
   const handleCreate = async () => {
@@ -260,7 +266,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
 
   return (
     <div style={{ padding: "14px 18px 22px" }}>
-      <SectionLabel>Star growth</SectionLabel>
+      <SectionLabel>{t("detail.section.star_growth")}</SectionLabel>
       <div style={{ marginBottom: 18, padding: "10px 12px", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 8 }}>
         <Sparkline values={history} />
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--ink-3)" }}>
@@ -271,7 +277,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
         </div>
       </div>
 
-      <SectionLabel>Status</SectionLabel>
+      <SectionLabel>{t("detail.section.status")}</SectionLabel>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
         {(Object.keys(STATUSES) as (keyof typeof STATUSES)[]).map((k) => {
           const active = star.status === k;
@@ -293,16 +299,16 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
         })}
       </div>
 
-      <SectionLabel>Tags</SectionLabel>
+      <SectionLabel>{t("detail.section.tags")}</SectionLabel>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 18, position: "relative" }}>
-        {tags.map((t) => <TagChip key={t.id} tag={t} onRemove={() => onRemoveTag(star.id, t.id)} />)}
+        {tags.map((tg) => <TagChip key={tg.id} tag={tg} onRemove={() => onRemoveTag(star.id, tg.id)} />)}
         <button onClick={() => setShowTagMenu((v) => !v)} style={{
           display: "inline-flex", alignItems: "center", gap: 4,
           padding: "1.5px 7px 1.5px 5px", borderRadius: 5,
           background: "var(--surface-1)", border: "1px dashed var(--border-strong)",
           color: "var(--ink-2)", fontSize: 11, cursor: "pointer", fontFamily: "inherit",
         }}>
-          <Icon name="plus" size={10} />add tag
+          <Icon name="plus" size={10} />{t("detail.add_tag")}
         </button>
         {showTagMenu && (
           <div style={{
@@ -327,7 +333,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
                   setShowTagMenu(false);
                 }
               }}
-              placeholder="Search or create tag…"
+              placeholder={t("detail.tag.search_placeholder")}
               autoFocus
               style={{
                 border: "none", outline: "none", padding: "5px 7px", fontSize: 12,
@@ -335,15 +341,15 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
                 borderBottom: "1px solid var(--border-soft)", marginBottom: 4,
               }}
             />
-            {availableTags.slice(0, 8).map((t) => (
-              <button key={t.id} onClick={() => { onAddTag(star.id, t.id); setTagQuery(""); setShowTagMenu(false); }} style={{
+            {availableTags.slice(0, 8).map((tg) => (
+              <button key={tg.id} onClick={() => { onAddTag(star.id, tg.id); setTagQuery(""); setShowTagMenu(false); }} style={{
                 display: "flex", alignItems: "center", gap: 7, padding: "5px 7px",
                 border: "none", background: "transparent", borderRadius: 4,
                 fontSize: 12, color: "var(--ink-1)", cursor: "pointer", textAlign: "left",
                 fontFamily: "inherit",
               }}>
-                <span style={{ width: 6, height: 6, borderRadius: 2, transform: "rotate(45deg)", background: TAG_COLOR[t.color] }} />
-                {t.name}
+                <span style={{ width: 6, height: 6, borderRadius: 2, transform: "rotate(45deg)", background: TAG_COLOR[tg.color] }} />
+                {tg.name}
               </button>
             ))}
             {canCreate && (
@@ -358,7 +364,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
                 }}
               >
                 <Icon name="plus" size={11} />
-                <span>Create <b>"{tagQuery.trim()}"</b></span>
+                <span>{t("detail.tag.create_prefix")} <b>"{tagQuery.trim()}"</b></span>
                 <span style={{ marginLeft: "auto", fontSize: 10.5, opacity: 0.7 }}>
                   {createMut.isPending || attachMut.isPending ? "…" : "↵"}
                 </span>
@@ -366,7 +372,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
             )}
             {availableTags.length === 0 && !canCreate && (
               <div style={{ padding: "6px 8px", fontSize: 11.5, color: "var(--ink-3)" }}>
-                {allTags.length === 0 ? "No tags yet — type to create one." : "No matching tags."}
+                {allTags.length === 0 ? t("detail.tag.empty_create") : t("detail.tag.empty_match")}
               </div>
             )}
           </div>
@@ -375,7 +381,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
 
       {star.topics?.length > 0 && (
         <>
-          <SectionLabel>Topics</SectionLabel>
+          <SectionLabel>{t("detail.section.topics")}</SectionLabel>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 18 }}>
             {star.topics.map((t) => (
               <span key={t} style={{
@@ -390,7 +396,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
 
       {star.note && (
         <>
-          <SectionLabel>Note preview</SectionLabel>
+          <SectionLabel>{t("detail.section.note_preview")}</SectionLabel>
           <div style={{
             padding: "10px 12px", background: "oklch(98% 0.025 75)",
             border: "1px solid color-mix(in oklch, oklch(70% 0.14 75) 22%, transparent)",
@@ -419,12 +425,13 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
   const createMut = useCreateTag();
   const attachMut = useAttachTag();
   const log = useEventLogger();
+  const t = useT();
 
   if (!status.data?.enabled) return null;
 
   const onApplySuggestion = async (name: string) => {
     // If the user already has this tag, just attach; otherwise create-and-attach.
-    const existing = allTags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    const existing = allTags.find((tg) => tg.name.toLowerCase() === name.toLowerCase());
     if (existing) {
       onAddTag(star.id, existing.id);
       log("tag_applied", { star_id: star.id, tag_id: existing.id, is_new_tag: false });
@@ -442,7 +449,7 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
 
   return (
     <div style={{ marginBottom: 22 }}>
-      <SectionLabel>AI assist</SectionLabel>
+      <SectionLabel>{t("detail.section.ai")}</SectionLabel>
       <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         <button
           onClick={() => suggest.mutate(star.id)}
@@ -455,7 +462,7 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
           }}
         >
           <Icon name="sparkle" size={11} />
-          {suggest.isPending ? "Thinking…" : "Suggest tags"}
+          {suggest.isPending ? t("detail.ai.suggesting") : t("detail.ai.suggest")}
         </button>
         <button
           onClick={() => summarize.mutate(star.id)}
@@ -468,7 +475,7 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
           }}
         >
           <Icon name="note" size={11} />
-          {summarize.isPending ? "Summarising…" : "Summarize README"}
+          {summarize.isPending ? t("detail.ai.summarizing") : t("detail.ai.summarize")}
         </button>
       </div>
       {suggest.data && suggest.data.suggestions.length > 0 && (
@@ -478,7 +485,7 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
           border: "1px solid color-mix(in oklch, var(--accent) 18%, transparent)",
         }}>
           <div style={{ fontSize: 11, color: "var(--accent)", fontWeight: 600, marginBottom: 6 }}>
-            Suggested tags · {suggest.data.model}
+            {t("detail.ai.suggested_label")} · {suggest.data.model}
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {suggest.data.suggestions.map((s) => (
@@ -507,7 +514,7 @@ function AISection({ star, onAddTag }: { star: Star; onAddTag: (id: number, tagI
         }}>
           {summarize.data.text}
           <div style={{ marginTop: 6, fontSize: 10.5, color: "var(--ink-3)" }}>
-            generated by {summarize.data.model}
+            {t("detail.ai.generated_by")} {summarize.data.model}
           </div>
         </div>
       )}
@@ -521,6 +528,7 @@ function ShareSection({ star }: { star: Star }) {
   const [copied, setCopied] = useState(false);
   const share = useShareMutation();
   const unshare = useUnshareMutation();
+  const t = useT();
 
   const onShare = async () => {
     try {
@@ -545,7 +553,7 @@ function ShareSection({ star }: { star: Star }) {
 
   return (
     <div style={{ marginBottom: 22 }}>
-      <SectionLabel>Public share</SectionLabel>
+      <SectionLabel>{t("detail.section.share")}</SectionLabel>
       {!token ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button
@@ -559,10 +567,10 @@ function ShareSection({ star }: { star: Star }) {
             }}
           >
             <Icon name="extLink" size={11} />
-            {share.isPending ? "Creating…" : "Create share link"}
+            {share.isPending ? t("detail.share.creating") : t("detail.share.create")}
           </button>
           <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
-            anyone with the link sees the note + tags
+            {t("detail.share.hint")}
           </span>
         </div>
       ) : (
@@ -578,14 +586,14 @@ function ShareSection({ star }: { star: Star }) {
             padding: "3px 9px", borderRadius: 5, border: "1px solid var(--border)",
             background: "var(--surface-0)", color: "var(--ink-1)", fontSize: 11,
             cursor: "pointer", fontFamily: "inherit",
-          }}>{copied ? "Copied" : "Copy"}</button>
+          }}>{copied ? t("common.copied") : t("common.copy")}</button>
           <button onClick={onRevoke}
             disabled={unshare.isPending}
             style={{
               padding: "3px 9px", borderRadius: 5, border: "1px solid var(--border)",
               background: "transparent", color: "oklch(50% 0.16 25)", fontSize: 11,
               cursor: "pointer", fontFamily: "inherit",
-            }}>Revoke</button>
+            }}>{t("detail.share.revoke")}</button>
         </div>
       )}
     </div>
@@ -624,6 +632,7 @@ function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string;
   const live = useReadme(star.id, authed);
   const liveContent = live.data?.content?.trim();
   const mock = getReadme(star);
+  const t = useT();
 
   return (
     <div>
@@ -635,16 +644,16 @@ function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string;
         borderBottom: "1px solid var(--border-soft)",
         fontSize: 11.5, color: "var(--ink-3)",
       }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>README.md</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{t("detail.readme.label")}</span>
         <span style={{ color: "var(--ink-3)" }}>
-          · {liveContent ? "live from GitHub" : live.isLoading ? "loading…" : "preview"}
+          · {liveContent ? t("detail.readme.live") : live.isLoading ? t("common.loading") : t("detail.readme.preview")}
         </span>
         <div style={{ flex: 1 }} />
         <a href={`${githubUrl}#readme`} target="_blank" rel="noreferrer" style={{
           display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px",
           background: "var(--surface-1)", border: "1px solid var(--border)",
           borderRadius: 5, color: "var(--ink-1)", textDecoration: "none",
-        }}>View on GitHub <Icon name="extLink" size={10} /></a>
+        }}>{t("detail.readme.view_on_github")} <Icon name="extLink" size={10} /></a>
       </div>
       <div style={{ padding: "18px 22px 32px", maxWidth: 760 }}>
         {liveContent ? (
@@ -712,6 +721,7 @@ function MdBlock({ block }: { block: any }) {
 function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, note: string) => void }) {
   const [note, setNote] = useState(star.note || "");
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const t = useT();
   useEffect(() => { setNote(star.note || ""); }, [star.id]);
   const saved = note === (star.note || "");
   const insertTimestamp = () => {
@@ -723,7 +733,7 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
   return (
     <div style={{ padding: "14px 18px 22px", display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <SectionLabel inline>Your note</SectionLabel>
+        <SectionLabel inline>{t("detail.notes.your_note")}</SectionLabel>
         <div
           role="tablist"
           style={{
@@ -747,12 +757,12 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
                 cursor: "pointer", fontFamily: "inherit",
               }}
             >
-              {m === "edit" ? "Edit" : "Preview"}
+              {m === "edit" ? t("detail.notes.edit") : t("detail.notes.preview")}
             </button>
           ))}
         </div>
         <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--ink-3)" }}>
-          {wordCount} word{wordCount === 1 ? "" : "s"}
+          {wordCount} {wordCount === 1 ? t("detail.notes.word") : t("detail.notes.words")}
         </span>
         {mode === "edit" && (
           <button onClick={insertTimestamp} style={{
@@ -760,11 +770,11 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
             padding: "2px 8px", borderRadius: 4, fontSize: 11, color: "var(--ink-2)",
             cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "inherit",
           }}>
-            <Icon name="plus" size={10} /> timestamp
+            <Icon name="plus" size={10} /> {t("detail.notes.timestamp")}
           </button>
         )}
         <span style={{ fontSize: 10.5, color: saved ? "var(--ink-3)" : "var(--accent)", minWidth: 50, textAlign: "right" }}>
-          {saved ? "saved" : "•  unsaved"}
+          {saved ? t("detail.notes.saved") : t("detail.notes.unsaved")}
         </span>
       </div>
       {mode === "edit" ? (
@@ -772,7 +782,7 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => onSaveNote(star.id, note)}
-          placeholder={`Why did you star this?\nWhat did you learn?\nWhat would you use it for?\n\n(Markdown supported. Notes are private and local to your account.)`}
+          placeholder={t("detail.notes.placeholder")}
           style={{
             flex: 1, minHeight: 260, padding: "12px 14px",
             border: "1px solid var(--border)", borderRadius: 8,
@@ -790,13 +800,13 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
           {note.trim() ? (
             <Markdown source={note} />
           ) : (
-            <div style={{ color: "var(--ink-3)", fontSize: 12.5 }}>Nothing to preview yet.</div>
+            <div style={{ color: "var(--ink-3)", fontSize: 12.5 }}>{t("detail.notes.empty_preview")}</div>
           )}
         </div>
       )}
       <div style={{ marginTop: 8, fontSize: 11, color: "var(--ink-3)", display: "flex", justifyContent: "space-between" }}>
-        <span>Autosaves when you click out</span>
-        <span>{star.lastReviewedAt ? `Last reviewed ${fmtRelative(star.lastReviewedAt)}` : "Never reviewed"}</span>
+        <span>{t("detail.notes.autosave")}</span>
+        <span>{star.lastReviewedAt ? `${t("detail.notes.last_reviewed")} ${fmtRelative(star.lastReviewedAt)}` : t("detail.notes.never_reviewed")}</span>
       </div>
     </div>
   );
@@ -805,9 +815,10 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
 function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
   const { commits, releases } = getActivity(star);
   const { tagById } = useTagsCtx();
+  const t = useT();
   return (
     <div style={{ padding: "14px 18px 22px" }}>
-      <SectionLabel>Recent releases</SectionLabel>
+      <SectionLabel>{t("detail.section.recent_releases")}</SectionLabel>
       <div style={{ marginBottom: 22, display: "flex", flexDirection: "column", gap: 6 }}>
         {releases.map((r, i) => (
           <a key={i} href={`${githubUrl}/releases/tag/${r.tag}`} target="_blank" rel="noreferrer" style={{
@@ -831,7 +842,7 @@ function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
         ))}
       </div>
 
-      <SectionLabel>Recent commits</SectionLabel>
+      <SectionLabel>{t("detail.section.recent_commits")}</SectionLabel>
       <div style={{
         background: "var(--surface-0)", border: "1px solid var(--border)", borderRadius: 8,
         overflow: "hidden", marginBottom: 22,
@@ -863,18 +874,18 @@ function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
         ))}
       </div>
 
-      <SectionLabel>Your timeline</SectionLabel>
+      <SectionLabel>{t("detail.section.timeline")}</SectionLabel>
       <div style={{ position: "relative", paddingLeft: 16 }}>
         <div style={{ position: "absolute", left: 5, top: 8, bottom: 8, width: 1, background: "var(--border)" }} />
-        <TimelineItem dot="accent" title="Starred" detail="and dropped into your inbox" when={star.starredAt} />
+        <TimelineItem dot="accent" title={t("detail.timeline.starred")} detail={t("detail.timeline.starred_detail")} when={star.starredAt} />
         {star.tags.length > 0 && (
-          <TimelineItem dot="tag" title={`Tagged ${star.tags.map((t) => "#" + tagById(t)?.name).filter(Boolean).join(" ")}`} when={star.starredAt} />
+          <TimelineItem dot="tag" title={`${t("detail.timeline.tagged_prefix")} ${star.tags.map((tagId) => "#" + tagById(tagId)?.name).filter(Boolean).join(" ")}`} when={star.starredAt} />
         )}
         {star.lastReviewedAt && (
-          <TimelineItem dot="reviewed" title="Reviewed" detail="surfaced via the Review page" when={star.lastReviewedAt} />
+          <TimelineItem dot="reviewed" title={t("detail.timeline.reviewed")} detail={t("detail.timeline.reviewed_detail")} when={star.lastReviewedAt} />
         )}
         {star.status !== "inbox" && (
-          <TimelineItem dot="status" title={`Marked as ${STATUSES[star.status].label.toLowerCase()}`} when={star.lastReviewedAt || star.starredAt} />
+          <TimelineItem dot="status" title={`${t("detail.timeline.marked_prefix")} ${t(("status." + star.status) as TKey).toLowerCase()}`} when={star.lastReviewedAt || star.starredAt} />
         )}
       </div>
     </div>
@@ -909,6 +920,7 @@ function TimelineItem({ title, detail, when, dot }: {
 function RelatedStars({ star, allStars, onOpen }: {
   star: Star; allStars: Star[]; onOpen: (id: number) => void;
 }) {
+  const t = useT();
   const related = useMemo(() => {
     return allStars
       .filter((s) => s.id !== star.id && s.status !== "archived")
@@ -926,7 +938,7 @@ function RelatedStars({ star, allStars, onOpen }: {
   if (related.length === 0) return null;
   return (
     <div style={{ marginBottom: 18 }}>
-      <SectionLabel>Related stars</SectionLabel>
+      <SectionLabel>{t("detail.section.related")}</SectionLabel>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {related.map(({ s, score }) => (
           <button key={s.id} onClick={() => onOpen(s.id)} style={{
@@ -948,7 +960,7 @@ function RelatedStars({ star, allStars, onOpen }: {
               fontSize: 10, padding: "1px 6px", borderRadius: 999,
               background: "var(--surface-2)", color: "var(--ink-2)",
               fontFamily: "'JetBrains Mono', monospace",
-            }}>{Math.round(score * 10)}% match</span>
+            }}>{Math.round(score * 10)}{t("detail.related.match_suffix")}</span>
             <Icon name="chevR" size={11} />
           </button>
         ))}
