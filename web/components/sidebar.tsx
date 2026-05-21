@@ -76,7 +76,7 @@ export function Sidebar({
       <div style={{ padding: "16px 16px 12px", display: "flex", alignItems: "center", gap: 9 }}>
         <div style={{
           width: 24, height: 24, borderRadius: 6,
-          background: "linear-gradient(135deg, oklch(50% 0.18 275), oklch(60% 0.15 295))",
+          background: "linear-gradient(135deg, oklch(28% 0 0), oklch(40% 0.04 260))",
           display: "flex", alignItems: "center", justifyContent: "center",
           color: "white", fontWeight: 700, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
         }}>★</div>

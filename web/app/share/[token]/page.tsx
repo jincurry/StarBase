@@ -54,7 +54,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
       }}>
         <span style={{
           width: 22, height: 22, borderRadius: 6,
-          background: "linear-gradient(135deg, oklch(50% 0.18 275), oklch(60% 0.15 295))",
+          background: "linear-gradient(135deg, oklch(28% 0 0), oklch(40% 0.04 260))",
           color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center",
           fontSize: 13, fontWeight: 700,
         }}>★</span>

@@ -24,11 +24,11 @@ export default function Landing() {
       display: "flex", flexDirection: "column", alignItems: "center",
       padding: "80px 24px",
       background:
-        "radial-gradient(ellipse 700px 500px at 50% 0%, oklch(96% 0.05 275), transparent), var(--surface-1)",
+        "radial-gradient(ellipse 700px 500px at 50% 0%, oklch(97% 0.012 260), transparent), var(--surface-1)",
     }}>
       <div style={{
         width: 64, height: 64, borderRadius: 14, marginBottom: 28,
-        background: "linear-gradient(135deg, oklch(50% 0.18 275), oklch(60% 0.15 295))",
+        background: "linear-gradient(135deg, oklch(28% 0 0), oklch(40% 0.04 260))",
         color: "white", display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 30, fontWeight: 700,
         boxShadow: "0 8px 28px color-mix(in oklch, oklch(50% 0.18 275) 35%, transparent)",

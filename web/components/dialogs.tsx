@@ -315,9 +315,9 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
       }}>
         <div style={{
           padding: "20px 24px 18px",
-          background: "linear-gradient(135deg, oklch(96% 0.04 275), oklch(96% 0.04 295))",
+          background: "linear-gradient(135deg, oklch(97% 0.008 260), oklch(96% 0.015 260))",
           borderBottom: "1px solid var(--border)",
-          color: "oklch(28% 0.08 275)", position: "relative",
+          color: "oklch(25% 0.03 260)", position: "relative",
         }}>
           <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.7 }}>
             {t("dialog.digest.heading")} · {week}
@@ -503,18 +503,18 @@ export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDism
     <div style={{
       margin: "10px 18px 0", padding: "10px 14px", borderRadius: 8,
       display: "flex", alignItems: "center", gap: 10,
-      background: "linear-gradient(135deg, oklch(96% 0.045 275), oklch(96% 0.045 295))",
+      background: "var(--accent-soft)",
       border: "1px solid color-mix(in oklch, var(--accent) 22%, transparent)",
     }}>
       <span style={{
         width: 28, height: 28, borderRadius: 7,
         background: "color-mix(in oklch, var(--accent) 16%, white)",
-        color: "oklch(40% 0.16 275)",
+        color: "var(--accent)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}><Icon name="sparkle" size={14} /></span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(28% 0.08 275)" }}>{t("notif.digest_ready")}</div>
-        <div style={{ fontSize: 11.5, color: "oklch(38% 0.05 275)" }}>{t("notif.digest_summary")}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-0)" }}>{t("notif.digest_ready")}</div>
+        <div style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{t("notif.digest_summary")}</div>
       </div>
       <button onClick={onOpen} style={{
         padding: "5px 12px", borderRadius: 6, border: "none",

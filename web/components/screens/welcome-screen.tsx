@@ -64,14 +64,14 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
       height: "100%", overflow: "auto",
       display: "flex", flexDirection: "column", alignItems: "center",
       padding: "60px 24px",
-      background: "radial-gradient(ellipse 600px 400px at 50% 0%, oklch(98% 0.04 275), transparent), var(--surface-1)",
+      background: "radial-gradient(ellipse 600px 400px at 50% 0%, oklch(97% 0.012 260), transparent), var(--surface-1)",
     }}>
       <div style={{
         width: 56, height: 56, borderRadius: 14,
-        background: "linear-gradient(135deg, oklch(50% 0.18 275), oklch(60% 0.15 295))",
+        background: "linear-gradient(135deg, oklch(28% 0 0), oklch(40% 0.04 260))",
         color: "white", display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 26, fontWeight: 700, marginBottom: 22,
-        boxShadow: "0 8px 28px color-mix(in oklch, oklch(50% 0.18 275) 35%, transparent)",
+        boxShadow: "0 8px 28px color-mix(in oklch, oklch(20% 0 0) 28%, transparent)",
       }}>★</div>
 
       {step < 2 && (
@@ -140,7 +140,7 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
           }}>
             <div style={{
               height: "100%", width: progress + "%",
-              background: "linear-gradient(90deg, oklch(55% 0.18 275), oklch(65% 0.16 295))",
+              background: "linear-gradient(90deg, var(--accent), oklch(55% 0.06 260))",
               transition: "width 0.2s ease-out",
             }} />
           </div>
