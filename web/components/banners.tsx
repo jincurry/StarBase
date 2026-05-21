@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "./icons";
+import { useT } from "@/lib/i18n/context";
 
 /**
  * Red banner that surfaces when GitHub has rejected our stored access
@@ -8,6 +9,7 @@ import { Icon } from "./icons";
  * sync stays broken until the user reconnects.
  */
 export function TokenInvalidBanner() {
+  const t = useT();
   return (
     <div
       role="alert"
@@ -24,8 +26,7 @@ export function TokenInvalidBanner() {
     >
       <Icon name="bug" size={14} />
       <span>
-        <b>GitHub disconnected.</b> Your token was rejected — syncing is paused
-        until you reconnect.
+        <b>{t("banner.disconnected.title")}</b> {t("banner.disconnected.body")}
       </span>
       <a
         href="/api/auth/github"
@@ -43,7 +44,7 @@ export function TokenInvalidBanner() {
           gap: 5,
         }}
       >
-        Reconnect GitHub <Icon name="arrowR" size={11} />
+        {t("banner.reconnect")} <Icon name="arrowR" size={11} />
       </a>
     </div>
   );

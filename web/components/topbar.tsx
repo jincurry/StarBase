@@ -5,6 +5,7 @@ import { Icon } from "./icons";
 import { Kbd } from "./primitives";
 import { NotificationsButton } from "./notifications";
 import { useIsTight } from "@/lib/use-window-width";
+import { useT } from "@/lib/i18n/context";
 import type { Notification } from "@/lib/types";
 
 interface TopbarProps {
@@ -24,6 +25,7 @@ export function Topbar({
   notifications, onMarkNotification, onOpenStar, onOpenPalette,
 }: TopbarProps) {
   const tight = useIsTight();
+  const t = useT();
   return (
     <div style={{
       height: 48, flexShrink: 0,
@@ -42,14 +44,14 @@ export function Topbar({
       </div>
       {!tight && right}
       {onOpenPalette && (
-        <button onClick={onOpenPalette} title="Command palette" style={{
+        <button onClick={onOpenPalette} title={t("sidebar.command_palette")} style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "5px 10px", borderRadius: 6,
           background: "var(--surface-1)", border: "1px solid var(--border)",
           color: "var(--ink-2)", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
         }}>
           <Icon name="search" size={12} />
-          {!tight && <span>Quick find</span>}
+          {!tight && <span>{t("topbar.quick_find")}</span>}
           <Kbd>⌘K</Kbd>
         </button>
       )}
@@ -67,7 +69,7 @@ export function Topbar({
           <span style={{ display: "flex", animation: syncing ? "spin 1s linear infinite" : "none" }}>
             <Icon name="refresh" size={12.5} />
           </span>
-          {syncing ? "Syncing…" : "Sync"}
+          {syncing ? t("topbar.syncing") : t("topbar.sync")}
         </button>
       )}
     </div>

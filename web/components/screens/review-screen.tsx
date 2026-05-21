@@ -7,6 +7,7 @@ import { Icon } from "../icons";
 import { LangDot, StatusPill } from "../primitives";
 import { fmtNumber, fmtRelative } from "@/lib/mock-data";
 import { useEventLogger, useReview } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
 
 interface Props {
   stars: Star[];
@@ -20,6 +21,7 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
   // when the API hasn't returned yet (or in demo mode).
   const review = useReview();
   const log = useEventLogger();
+  const t = useT();
   const { recently, stale, rediscover } = useMemo(() => {
     if (review.data) {
       return {
@@ -67,19 +69,19 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Topbar title="Review" onSync={onSync} syncing={syncing}
-        right={<div style={{ fontSize: 12, color: "var(--ink-3)" }}>a moment to revisit what's worth your time</div>} />
+      <Topbar title={t("review.title")} onSync={onSync} syncing={syncing}
+        right={<div style={{ fontSize: 12, color: "var(--ink-3)" }}>{t("review.subtitle")}</div>} />
       <div style={{ overflow: "auto", flex: 1, padding: "20px 24px 40px" }}>
-        <ReviewSection icon="sparkle" title="Recently starred"
-          subtitle={`${recently.length} new this week — fresh for triage`}
+        <ReviewSection icon="sparkle" title={t("review.recently.title")}
+          subtitle={`${recently.length} ${t("review.recently.subtitle")}`}
           tone="oklch(60% 0.16 255)" tint="oklch(96% 0.04 255)"
           stars={recently} onOpen={(id) => openWithLog(recently.find((s) => s.id === id)!, "recently")} />
-        <ReviewSection icon="timer" title="Stale in your inbox"
-          subtitle={`${stale.length} have been sitting for over 14 days`}
+        <ReviewSection icon="timer" title={t("review.stale.title")}
+          subtitle={`${stale.length} ${t("review.stale.subtitle")}`}
           tone="oklch(58% 0.13 60)" tint="oklch(97% 0.04 75)"
           stars={stale} onOpen={(id) => openWithLog(stale.find((s) => s.id === id)!, "stale")} />
-        <ReviewSection icon="review" title="Rediscover"
-          subtitle="Repos you starred long ago — surfaced by least-recently-reviewed"
+        <ReviewSection icon="review" title={t("review.rediscover.title")}
+          subtitle={t("review.rediscover.subtitle")}
           tone="oklch(54% 0.14 295)" tint="oklch(96% 0.04 295)"
           stars={rediscover} onOpen={(id) => openWithLog(rediscover.find((s) => s.id === id)!, "rediscover")} />
       </div>
@@ -132,6 +134,7 @@ function ReviewSection({
 }
 
 function ReviewRow({ star, onOpen }: { star: Star; onOpen: (id: number) => void }) {
+  const t = useT();
   return (
     <div onClick={() => onOpen(star.id)} style={{
       display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center",
@@ -151,7 +154,7 @@ function ReviewRow({ star, onOpen }: { star: Star; onOpen: (id: number) => void 
       <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--ink-3)", fontSize: 11.5 }}>
         <LangDot language={star.language} />
         <span>★ {fmtNumber(star.stars)}</span>
-        <span>{star.lastReviewedAt ? `last seen ${fmtRelative(star.lastReviewedAt)}` : "never reviewed"}</span>
+        <span>{star.lastReviewedAt ? `${t("review.last_seen")} ${fmtRelative(star.lastReviewedAt)}` : t("review.never_reviewed")}</span>
       </div>
     </div>
   );

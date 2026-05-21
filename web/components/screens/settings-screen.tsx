@@ -19,6 +19,7 @@ import {
   useUpdatePreferences,
   useUpdateTag,
 } from "@/lib/queries";
+import { useLocale, useT } from "@/lib/i18n/context";
 
 interface Props {
   user: User;
@@ -82,6 +83,8 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
   const deleteAccount = useDeleteAccount();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmDisconnectOpen, setConfirmDisconnectOpen] = useState(false);
+  const t = useT();
+  const { locale, setLocale } = useLocale();
 
   const stale = prefsQ.data?.stale_inbox_days ?? 14;
   const autoArchive = prefsQ.data?.auto_archive_on_unstar ?? true;
@@ -90,12 +93,12 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Topbar title="Settings" />
+      <Topbar title={t("settings.title")} />
       <div style={{ overflow: "auto", flex: 1, padding: "24px 32px", maxWidth: 720 }}>
-        <SettingsBlock title="Appearance">
-          <Row label="Theme" hint="Light, dark, or follow your system.">
+        <SettingsBlock title={t("settings.appearance")}>
+          <Row label={t("settings.theme")} hint={t("settings.theme.hint")}>
             <div style={{ display: "flex", gap: 4 }}>
-              {[{ v: "light", l: "Light" }, { v: "dark", l: "Dark" }].map((o) => (
+              {[{ v: "light", l: t("settings.theme.light") }, { v: "dark", l: t("settings.theme.dark") }].map((o) => (
                 <button key={o.v} onClick={() => theme !== o.v && onToggleTheme()} style={{
                   padding: "5px 10px", borderRadius: 5, fontSize: 12,
                   border: `1px solid ${theme === o.v ? "var(--accent)" : "var(--border)"}`,
@@ -106,9 +109,25 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
               ))}
             </div>
           </Row>
+          <Row label={t("settings.language")} hint={t("settings.language.hint")}>
+            <div style={{ display: "flex", gap: 4 }}>
+              {([
+                { v: "en" as const, l: t("settings.language.en") },
+                { v: "zh" as const, l: t("settings.language.zh") },
+              ]).map((o) => (
+                <button key={o.v} onClick={() => locale !== o.v && setLocale(o.v)} style={{
+                  padding: "5px 10px", borderRadius: 5, fontSize: 12,
+                  border: `1px solid ${locale === o.v ? "var(--accent)" : "var(--border)"}`,
+                  background: locale === o.v ? "var(--accent-soft)" : "var(--surface-1)",
+                  color: locale === o.v ? "var(--accent)" : "var(--ink-1)",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}>{o.l}</button>
+              ))}
+            </div>
+          </Row>
         </SettingsBlock>
 
-        <SettingsBlock title="Account">
+        <SettingsBlock title={t("settings.account")}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
               width: 44, height: 44, borderRadius: "50%",
@@ -123,31 +142,31 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
             <button style={secondaryBtn} onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
               window.location.href = "/";
-            }}>Sign out</button>
+            }}>{t("settings.signout")}</button>
           </div>
         </SettingsBlock>
 
-        <SettingsBlock title="Sync"
-          subtitle={`Last incremental: ${fmtRelative(user.lastSync)} · Last reconcile: ${fmtRelative(user.lastReconcile)}`}>
+        <SettingsBlock title={t("settings.sync")}
+          subtitle={`${t("settings.sync.subtitle.last_incremental")} ${fmtRelative(user.lastSync)} · ${t("settings.sync.subtitle.last_reconcile")} ${fmtRelative(user.lastReconcile)}`}>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={primaryBtn} onClick={onSync} disabled={syncing}>
-              {syncing ? "Syncing…" : "Sync new stars"}
+              {syncing ? t("topbar.syncing") : t("settings.sync.new")}
             </button>
             <button style={secondaryBtn}
               onClick={() => reconcile.mutate("reconcile")}
               disabled={reconcile.isPending}>
-              {reconcile.isPending ? "Queuing…" : "Reconcile (full)"}
+              {reconcile.isPending ? t("settings.sync.reconcile_queuing") : t("settings.sync.reconcile")}
             </button>
           </div>
           <div style={{ marginTop: 14, padding: 10, background: "var(--surface-1)", borderRadius: 6, border: "1px solid var(--border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--ink-2)" }}>
-              <span>GitHub API rate limit</span>
+              <span>{t("settings.sync.rate_limit")}</span>
               {rate && rate.limit > 0 ? (
                 <span style={{ fontVariantNumeric: "tabular-nums" }}>
                   {rate.remaining.toLocaleString()} / {rate.limit.toLocaleString()}
                   {rate.reset_at && (
                     <span style={{ color: "var(--ink-3)", marginLeft: 6 }}>
-                      · resets {fmtRelative(rate.reset_at)}
+                      · {t("settings.sync.rate_resets")} {fmtRelative(rate.reset_at)}
                     </span>
                   )}
                 </span>
@@ -163,21 +182,21 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
           </div>
         </SettingsBlock>
 
-        <SettingsBlock title="Inbox" subtitle="How new stars enter your workflow">
-          <Row label="Stale-inbox threshold" hint="Repos sitting longer get flagged on the Review page.">
+        <SettingsBlock title={t("settings.inbox")} subtitle={t("settings.inbox.subtitle")}>
+          <Row label={t("settings.inbox.stale_threshold")} hint={t("settings.inbox.stale_hint")}>
             <select
               style={selectStyle}
               value={String(stale)}
               onChange={(e) => prefsMut.mutate({ stale_inbox_days: Number(e.target.value) })}
               disabled={prefsMut.isPending}
             >
-              <option value="7">7 days</option>
-              <option value="14">14 days</option>
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
+              <option value="7">{t("settings.inbox.days_7")}</option>
+              <option value="14">{t("settings.inbox.days_14")}</option>
+              <option value="30">{t("settings.inbox.days_30")}</option>
+              <option value="60">{t("settings.inbox.days_60")}</option>
             </select>
           </Row>
-          <Row label="Auto-archive on unstar" hint="Keep your local notes when you unstar on GitHub.">
+          <Row label={t("settings.inbox.auto_archive")} hint={t("settings.inbox.auto_archive_hint")}>
             <Toggle
               on={autoArchive}
               onChange={(v) => prefsMut.mutate({ auto_archive_on_unstar: v })}
@@ -188,21 +207,21 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
 
         <TagsBlock />
 
-        <SettingsBlock title="Danger zone" tone="danger">
-          <Row label="Disconnect GitHub" hint="Removes OAuth token. Your local notes & tags are preserved.">
-            <button style={dangerBtn} onClick={() => setConfirmDisconnectOpen(true)}>Disconnect</button>
+        <SettingsBlock title={t("settings.danger")} tone="danger">
+          <Row label={t("settings.danger.disconnect")} hint={t("settings.danger.disconnect_hint")}>
+            <button style={dangerBtn} onClick={() => setConfirmDisconnectOpen(true)}>{t("settings.danger.disconnect_action")}</button>
           </Row>
-          <Row label="Delete all data" hint="Permanently delete every repo, note, tag, and event for this account.">
-            <button style={dangerBtn} onClick={() => setConfirmDeleteOpen(true)}>Delete everything</button>
+          <Row label={t("settings.danger.delete")} hint={t("settings.danger.delete_hint")}>
+            <button style={dangerBtn} onClick={() => setConfirmDeleteOpen(true)}>{t("settings.danger.delete_action")}</button>
           </Row>
         </SettingsBlock>
       </div>
 
       {confirmDisconnectOpen && (
         <ConfirmModal
-          title="Disconnect from GitHub?"
-          body="We'll forget your access token. Your notes, tags, and statuses stay put — you can reconnect any time."
-          confirmLabel="Disconnect"
+          title={t("settings.disconnect_modal.title")}
+          body={t("settings.disconnect_modal.body")}
+          confirmLabel={t("settings.danger.disconnect_action")}
           danger
           onCancel={() => setConfirmDisconnectOpen(false)}
           onConfirm={async () => {
@@ -237,36 +256,37 @@ function TagsBlock() {
   const deleteTag = useDeleteTag();
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
+  const t = useT();
 
   if (tags.length === 0) {
     return (
-      <SettingsBlock title="Tags" subtitle="Manage your tag vocabulary">
+      <SettingsBlock title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
         <div style={{ fontSize: 12.5, color: "var(--ink-3)", padding: 6 }}>
-          No tags yet. Create one from the detail panel of any repo.
+          {t("settings.tags.empty")}
         </div>
       </SettingsBlock>
     );
   }
   return (
-    <SettingsBlock title="Tags" subtitle="Manage your tag vocabulary">
+    <SettingsBlock title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {tags.map((t) => (
-          <div key={t.id} style={{
+        {tags.map((tag) => (
+          <div key={tag.id} style={{
             display: "flex", alignItems: "center", gap: 10,
             padding: "6px 8px", borderRadius: 6,
-            background: editing === t.id ? "var(--surface-1)" : "transparent",
+            background: editing === tag.id ? "var(--surface-1)" : "transparent",
           }}>
             <span style={{
               width: 8, height: 8, borderRadius: 2, transform: "rotate(45deg)",
-              background: TAG_COLOR[t.color] || "var(--ink-3)",
+              background: TAG_COLOR[tag.color] || "var(--ink-3)",
             }} />
-            {editing === t.id ? (
+            {editing === tag.id ? (
               <input
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    updateTag.mutate({ id: t.id, body: { name: draft.trim() } });
+                    updateTag.mutate({ id: tag.id, body: { name: draft.trim() } });
                     setEditing(null);
                   } else if (e.key === "Escape") {
                     setEditing(null);
@@ -281,12 +301,12 @@ function TagsBlock() {
               />
             ) : (
               <span style={{ flex: 1, fontSize: 12.5 }}>
-                <span style={{ color: "var(--ink-3)" }}>#</span>{t.name}
+                <span style={{ color: "var(--ink-3)" }}>#</span>{tag.name}
               </span>
             )}
             <select
-              value={t.color}
-              onChange={(e) => updateTag.mutate({ id: t.id, body: { color: e.target.value } })}
+              value={tag.color}
+              onChange={(e) => updateTag.mutate({ id: tag.id, body: { color: e.target.value } })}
               style={{ ...selectStyle, fontSize: 11, padding: "2px 6px" }}
               disabled={updateTag.isPending}
             >
@@ -294,21 +314,21 @@ function TagsBlock() {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
-            {editing === t.id ? (
+            {editing === tag.id ? (
               <button onClick={() => setEditing(null)} style={{
                 fontSize: 11, padding: "2px 8px", border: "1px solid var(--border)",
                 background: "var(--surface-0)", borderRadius: 4, cursor: "pointer", fontFamily: "inherit",
-              }}>Cancel</button>
+              }}>{t("common.cancel")}</button>
             ) : (
-              <button onClick={() => { setEditing(t.id); setDraft(t.name); }} style={{
+              <button onClick={() => { setEditing(tag.id); setDraft(tag.name); }} style={{
                 fontSize: 11, padding: "2px 8px", border: "1px solid var(--border)",
                 background: "var(--surface-0)", borderRadius: 4, cursor: "pointer", fontFamily: "inherit",
                 color: "var(--ink-2)",
-              }}>Rename</button>
+              }}>{t("common.rename")}</button>
             )}
             <button onClick={() => {
-              if (confirm(`Delete tag "${t.name}"? This removes it from every starred repo.`)) {
-                deleteTag.mutate(t.id);
+              if (confirm(`${t("settings.tags.delete_confirm_prefix")} "${tag.name}"${t("settings.tags.delete_confirm_suffix")}`)) {
+                deleteTag.mutate(tag.id);
               }
             }} style={dangerBtn}>
               <Icon name="x" size={11} />
@@ -326,6 +346,7 @@ function ConfirmModal({
   title: string; body: string; confirmLabel: string; danger?: boolean;
   onCancel: () => void; onConfirm: () => void; loading?: boolean;
 }) {
+  const t = useT();
   return (
     <div onClick={onCancel} style={{
       position: "fixed", inset: 0, background: "rgba(10,10,20,0.45)",
@@ -340,7 +361,7 @@ function ConfirmModal({
         <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600 }}>{title}</h2>
         <p style={{ margin: "0 0 18px", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>{body}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={secondaryBtn} disabled={loading}>Cancel</button>
+          <button onClick={onCancel} style={secondaryBtn} disabled={loading}>{t("common.cancel")}</button>
           <button onClick={onConfirm} disabled={loading} style={{
             padding: "6px 14px", borderRadius: 6, border: "none",
             background: danger ? "oklch(50% 0.18 25)" : "var(--accent)",
@@ -361,6 +382,7 @@ function DeleteAccountModal({
 }) {
   const [typed, setTyped] = useState("");
   const match = typed === username;
+  const t = useT();
   return (
     <div onClick={onCancel} style={{
       position: "fixed", inset: 0, background: "rgba(10,10,20,0.45)",
@@ -373,14 +395,13 @@ function DeleteAccountModal({
         boxShadow: "var(--shadow-lg)", padding: 22,
       }}>
         <h2 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "oklch(50% 0.18 25)" }}>
-          Delete everything?
+          {t("settings.delete_modal.title")}
         </h2>
         <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>
-          This permanently deletes every repo, note, tag, and event for this account.
-          It cannot be undone.
+          {t("settings.delete_modal.body")}
         </p>
         <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--ink-2)" }}>
-          Type <code style={{ background: "var(--surface-2)", padding: "1px 6px", borderRadius: 4 }}>{username}</code> to confirm:
+          {t("settings.delete_modal.confirm_prompt")} <code style={{ background: "var(--surface-2)", padding: "1px 6px", borderRadius: 4 }}>{username}</code> {t("settings.delete_modal.confirm_suffix")}
         </p>
         <input
           value={typed}
@@ -394,7 +415,7 @@ function DeleteAccountModal({
           }}
         />
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={secondaryBtn} disabled={loading}>Cancel</button>
+          <button onClick={onCancel} style={secondaryBtn} disabled={loading}>{t("common.cancel")}</button>
           <button onClick={() => onConfirm(typed)} disabled={!match || loading} style={{
             padding: "6px 14px", borderRadius: 6, border: "none",
             background: match ? "oklch(50% 0.18 25)" : "var(--surface-2)",
@@ -402,7 +423,7 @@ function DeleteAccountModal({
             fontSize: 12.5, fontWeight: 500,
             cursor: match ? "pointer" : "not-allowed", fontFamily: "inherit",
           }}>
-            {loading ? "Deleting…" : "Delete forever"}
+            {loading ? t("settings.delete_modal.deleting") : t("settings.delete_modal.cta")}
           </button>
         </div>
       </div>

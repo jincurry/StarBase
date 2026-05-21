@@ -3,6 +3,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { StatusKey, Tag } from "@/lib/types";
 import { LANGUAGE_COLOR } from "@/lib/mock-data";
+import { useT } from "@/lib/i18n/context";
+import type { TKey } from "@/lib/i18n/dict";
 
 export const STATUSES: Record<StatusKey, { label: string; dot: string; bg: string; fg: string; key: string }> = {
   inbox:     { label: "Inbox",     dot: "oklch(62% 0.16 255)", bg: "oklch(96% 0.02 255)",  fg: "oklch(38% 0.14 255)", key: "—" },
@@ -30,8 +32,21 @@ interface StatusPillProps {
   size?: "sm" | "xs";
 }
 
+const STATUS_LABEL_KEY: Record<StatusKey, TKey> = {
+  inbox: "status.inbox",
+  reviewing: "status.reviewing",
+  kept: "status.kept",
+  dropped: "status.dropped",
+  archived: "status.archived",
+};
+
+export function statusLabelKey(status: StatusKey): TKey {
+  return STATUS_LABEL_KEY[status];
+}
+
 export function StatusPill({ status, size = "sm" }: StatusPillProps) {
   const s = STATUSES[status];
+  const t = useT();
   if (!s) return null;
   const padY = size === "xs" ? "1px" : "2px";
   const padX = size === "xs" ? "6px" : "8px";
@@ -45,7 +60,7 @@ export function StatusPill({ status, size = "sm" }: StatusPillProps) {
       border: `1px solid color-mix(in oklch, ${s.fg} 12%, transparent)`,
     }}>
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot }} />
-      {s.label}
+      {t(STATUS_LABEL_KEY[status])}
     </span>
   );
 }

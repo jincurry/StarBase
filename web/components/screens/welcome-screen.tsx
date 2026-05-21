@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { primaryBtn } from "../primitives";
+import { useT } from "@/lib/i18n/context";
+import type { TKey } from "@/lib/i18n/dict";
 
 interface Props {
   onContinue: () => void;
@@ -13,18 +15,18 @@ interface Props {
   liveDone?: boolean;
 }
 
-const FAKE_STAGES = [
-  "Fetching starred repos…",
-  "Hydrating metadata…",
-  "Building search index…",
-  "Almost done…",
-];
-
 export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage, liveDone }: Props) {
+  const t = useT();
   const [step, setStep] = useState(0); // 0 choose · 2 syncing · 3 done
   const [choice, setChoice] = useState(30);
   const [fakeProgress, setFakeProgress] = useState(0);
   const [fakeStage, setFakeStage] = useState("");
+  const FAKE_STAGES = [
+    t("welcome.syncing.running"),
+    t("welcome.syncing.running"),
+    t("welcome.syncing.running"),
+    t("welcome.syncing.running"),
+  ];
 
   // If no liveProgress is supplied, fall back to the prototype's fake timer.
   useEffect(() => {
@@ -50,11 +52,11 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
   const progress = liveProgress ?? fakeProgress;
   const stage = liveStage ?? fakeStage;
 
-  const choices = [
-    { v: 10, t: "Just the latest 10", h: "Stay light. Process what's fresh.", rec: false },
-    { v: 30, t: "Latest 30", h: "Recommended. A useful starting batch.", rec: true },
-    { v: 100, t: "Latest 100", h: "Power user. You'll have work to do.", rec: false },
-    { v: -1, t: "Everything", h: "Triage your entire history.", rec: false },
+  const choices: { v: number; tk: TKey; hk: TKey; rec: boolean }[] = [
+    { v: 10, tk: "welcome.choice.10", hk: "welcome.choice.10.hint", rec: false },
+    { v: 30, tk: "welcome.choice.30", hk: "welcome.choice.30.hint", rec: true },
+    { v: 100, tk: "welcome.choice.100", hk: "welcome.choice.100.hint", rec: false },
+    { v: -1, tk: "welcome.choice.all", hk: "welcome.choice.all.hint", rec: false },
   ];
 
   return (
@@ -75,10 +77,10 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
       {step < 2 && (
         <>
           <h1 style={{ fontSize: 26, margin: "0 0 8px", fontWeight: 600, letterSpacing: "-0.02em" }}>
-            Welcome to StarBase
+            {t("welcome.title")}
           </h1>
           <p style={{ fontSize: 14, color: "var(--ink-2)", margin: "0 0 32px", textAlign: "center", maxWidth: 480, lineHeight: 1.55 }}>
-            We'll pull your GitHub stars and put the latest ones into your inbox for triage. Everything else gets quietly archived — searchable, but not in your way.
+            {t("welcome.body")}
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 460, maxWidth: "100%" }}>
@@ -99,18 +101,18 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
                 }}>{choice === c.v && <Icon name="check" size={10} stroke={3} />}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-0)" }}>
-                    {c.t}
+                    {t(c.tk)}
                     {c.rec && (
                       <span style={{
                         marginLeft: 8, fontSize: 10, padding: "1px 6px", borderRadius: 4,
                         background: "var(--accent)", color: "white", fontWeight: 500,
-                      }}>recommended</span>
+                      }}>{t("welcome.recommended")}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 2 }}>{c.h}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 2 }}>{t(c.hk)}</div>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "'JetBrains Mono', monospace" }}>
-                  {c.v === -1 ? "all" : c.v} → inbox
+                  {c.v === -1 ? "all" : c.v} {t("welcome.choice.inbox_suffix")}
                 </div>
               </button>
             ))}
@@ -123,14 +125,14 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
             ...primaryBtn, marginTop: 28, padding: "10px 22px", fontSize: 13, fontWeight: 600,
             display: "inline-flex", alignItems: "center", gap: 7,
           }}>
-            Start syncing <Icon name="arrowR" size={13} />
+            {t("welcome.start")} <Icon name="arrowR" size={13} />
           </button>
         </>
       )}
 
       {step === 2 && (
         <div style={{ width: 460, maxWidth: "100%", textAlign: "center" }}>
-          <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>Syncing your stars…</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>{t("welcome.syncing.title")}</h2>
           <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 24px" }}>{stage}</p>
           <div style={{
             height: 8, borderRadius: 999, background: "var(--surface-2)",
@@ -155,12 +157,12 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
             background: "oklch(95% 0.06 145)", color: "oklch(45% 0.13 145)",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}><Icon name="check" size={22} stroke={3} /></div>
-          <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>You're all set</h2>
+          <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>{t("welcome.done.title")}</h2>
           <p style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 24px" }}>
-            {choice === -1 ? "All your" : choice} repos are ready in your inbox. The rest are archived but searchable.
+            {choice === -1 ? "All your" : choice} {t("welcome.choice.inbox_suffix")}
           </p>
           <button onClick={onContinue} style={{ ...primaryBtn, padding: "10px 22px", fontSize: 13 }}>
-            Open my Inbox
+            {t("welcome.done.cta")}
           </button>
         </div>
       )}

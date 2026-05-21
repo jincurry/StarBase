@@ -11,6 +11,8 @@ import { BulkActionBar } from "../dialogs";
 import { LANGUAGE_COLOR, SMART_INBOXES, getReadme } from "@/lib/mock-data";
 import { useTagsCtx } from "../providers";
 import { useEventLogger } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
+import type { TKey } from "@/lib/i18n/dict";
 
 interface Props {
   stars: Star[];
@@ -46,6 +48,14 @@ export function StarsScreen({
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const lastCheckedRef = useRef<number | null>(null);
   const log = useEventLogger();
+  const t = useT();
+  const statusKey: Record<string, TKey> = {
+    inbox: "status.inbox",
+    reviewing: "status.reviewing",
+    kept: "status.kept",
+    dropped: "status.dropped",
+    archived: "status.archived",
+  };
 
   const smartFilter = useMemo(() => {
     if (!smartInbox) return null;
@@ -162,8 +172,8 @@ export function StarsScreen({
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <Topbar
-        title="Stars"
-        subtitle={smartFilter ? `${filtered.length} in ${smartFilter.label}` : `${filtered.length} of ${stars.length}`}
+        title={t("sidebar.stars")}
+        subtitle={smartFilter ? `${filtered.length} ${t("common.in")} ${smartFilter.label}` : `${filtered.length} ${t("common.of")} ${stars.length}`}
         onSync={onSync}
         syncing={syncing}
         notifications={notifications}
@@ -171,13 +181,13 @@ export function StarsScreen({
         onOpenStar={(id) => { setSelectedId(id); onOpen(id); }}
         onOpenPalette={onOpenPalette}
         right={
-          <button onClick={onExport} title="Export" style={{
+          <button onClick={onExport} title={t("common.export")} style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: "5px 10px", borderRadius: 6,
             background: "var(--surface-1)", border: "1px solid var(--border)",
             color: "var(--ink-1)", fontSize: 12, cursor: "pointer", fontFamily: "inherit",
           }}>
-            <Icon name="extLink" size={12} /> Export
+            <Icon name="extLink" size={12} /> {t("common.export")}
           </button>
         }
       />
@@ -189,12 +199,12 @@ export function StarsScreen({
           fontSize: 12, color: "var(--accent)",
         }}>
           <Icon name="folder" size={13} />
-          <span>Smart filter: <b>{smartFilter.label}</b></span>
+          <span>{t("stars.smart.label")} <b>{smartFilter.label}</b></span>
           <button onClick={onClearSmartInbox} style={{
             marginLeft: "auto", background: "transparent", border: "1px solid currentColor",
             padding: "2px 9px", borderRadius: 4, fontSize: 11, color: "inherit",
             cursor: "pointer", fontFamily: "inherit",
-          }}>Clear filter</button>
+          }}>{t("stars.smart.clear")}</button>
         </div>
       )}
 
@@ -210,7 +220,7 @@ export function StarsScreen({
         }}>
           <Icon name="search" size={13} />
           <input ref={searchRef} value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))}
-            placeholder={filter.searchReadme ? "Search name, desc, notes, READMEs…" : "Search name, description, notes…"}
+            placeholder={filter.searchReadme ? t("stars.search.with_readme") : t("stars.search.basic")}
             style={{
               border: "none", outline: "none", flex: 1, fontSize: 12.5,
               background: "transparent", color: "var(--ink-0)", fontFamily: "inherit",
@@ -219,28 +229,28 @@ export function StarsScreen({
         </div>
         <Select value={filter.status} onChange={(v) => setFilter((f) => ({ ...f, status: v }))}
           options={[
-            { v: "all", l: "All status" },
-            ...Object.entries(STATUSES).map(([k, s]) => ({ v: k, l: s.label, dot: s.dot })),
+            { v: "all", l: t("stars.filter.all_status") },
+            ...Object.entries(STATUSES).map(([k, s]) => ({ v: k, l: t(statusKey[k]), dot: s.dot })),
           ]} />
         <Select value={filter.tag} onChange={(v) => setFilter((f) => ({ ...f, tag: v }))}
           options={[
-            { v: "all", l: "All tags" },
-            ...TAGS.map((t) => ({ v: String(t.id), l: "#" + t.name, dot: TAG_COLOR[t.color] })),
+            { v: "all", l: t("stars.filter.all_tags") },
+            ...TAGS.map((tg) => ({ v: String(tg.id), l: "#" + tg.name, dot: TAG_COLOR[tg.color] })),
           ]} />
         <Select value={filter.language} onChange={(v) => setFilter((f) => ({ ...f, language: v }))}
           options={[
-            { v: "all", l: "Any language" },
+            { v: "all", l: t("stars.filter.any_language") },
             ...languages.map((l) => ({ v: l, l, dot: LANGUAGE_COLOR[l] })),
           ]} />
-        <Toggle on={filter.hasNote} onChange={(v) => setFilter((f) => ({ ...f, hasNote: v }))} label="Has note" />
-        <Toggle on={filter.searchReadme} onChange={(v) => setFilter((f) => ({ ...f, searchReadme: v }))} label="Search READMEs" />
+        <Toggle on={filter.hasNote} onChange={(v) => setFilter((f) => ({ ...f, hasNote: v }))} label={t("stars.filter.has_note")} />
+        <Toggle on={filter.searchReadme} onChange={(v) => setFilter((f) => ({ ...f, searchReadme: v }))} label={t("stars.filter.search_readmes")} />
         <div style={{ flex: 1 }} />
         <Select value={sort} onChange={setSort}
           options={[
-            { v: "starred-desc", l: "Recently starred" },
-            { v: "starred-asc", l: "Oldest stars" },
-            { v: "stars-desc", l: "Most popular" },
-            { v: "pushed-desc", l: "Recently updated" },
+            { v: "starred-desc", l: t("stars.sort.recent") },
+            { v: "starred-asc", l: t("stars.sort.oldest") },
+            { v: "stars-desc", l: t("stars.sort.popular") },
+            { v: "pushed-desc", l: t("stars.sort.updated") },
           ]} />
       </div>
 
@@ -270,7 +280,7 @@ export function StarsScreen({
         ) : filtered.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
             <Icon name="search" size={24} /><br /><br />
-            No stars match these filters.
+            {t("stars.empty.filtered")}
           </div>
         ) : (
           filtered.map((s) => (

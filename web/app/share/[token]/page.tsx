@@ -5,6 +5,7 @@ import { GithubMark, Icon } from "@/components/icons";
 import { LangDot, StatusPill } from "@/components/primitives";
 import { Markdown } from "@/components/markdown";
 import { fmtNumber, fmtRelative } from "@/lib/mock-data";
+import { useT } from "@/lib/i18n/context";
 
 interface PublicStar {
   owner: string;
@@ -21,6 +22,7 @@ interface PublicStar {
 export default function SharePage({ params }: { params: { token: string } }) {
   const [data, setData] = useState<PublicStar | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     fetch(`/api/share/${params.token}`)
@@ -32,13 +34,13 @@ export default function SharePage({ params }: { params: { token: string } }) {
   if (error) {
     return (
       <main style={{ padding: 64, textAlign: "center", color: "var(--ink-2)" }}>
-        <div style={{ fontSize: 18, marginBottom: 6 }}>Share link not found</div>
-        <div style={{ fontSize: 13, color: "var(--ink-3)" }}>It may have been revoked.</div>
+        <div style={{ fontSize: 18, marginBottom: 6 }}>{t("share.not_found.title")}</div>
+        <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{t("share.not_found.body")}</div>
       </main>
     );
   }
   if (!data) {
-    return <main style={{ padding: 64, color: "var(--ink-3)", textAlign: "center" }}>Loading…</main>;
+    return <main style={{ padding: 64, color: "var(--ink-3)", textAlign: "center" }}>{t("common.loading")}</main>;
   }
 
   const githubUrl = `https://github.com/${data.owner}/${data.name}`;
@@ -56,7 +58,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
           color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center",
           fontSize: 13, fontWeight: 700,
         }}>★</span>
-        shared via <b style={{ color: "var(--ink-0)" }}>StarBase</b>
+        {t("share.shared_via")} <b style={{ color: "var(--ink-0)" }}>StarBase</b>
       </a>
 
       <StatusPill status={data.status} />
@@ -77,7 +79,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <Icon name="star" size={11} /> {fmtNumber(data.stars)}
         </span>
-        <span>starred {fmtRelative(data.starred_at)}</span>
+        <span>{t("detail.starred")} {fmtRelative(data.starred_at)}</span>
       </div>
 
       <a href={githubUrl} target="_blank" rel="noreferrer" style={{
@@ -86,7 +88,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
         background: "oklch(20% 0.01 270)", color: "white", fontSize: 13, fontWeight: 500,
       }}>
         <GithubMark size={14} />
-        Open on GitHub
+        {t("detail.open_on_github")}
         <Icon name="extLink" size={11} />
       </a>
 
@@ -107,7 +109,7 @@ export default function SharePage({ params }: { params: { token: string } }) {
           <h2 style={{
             fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase",
             color: "var(--ink-3)", margin: "0 0 12px",
-          }}>The note</h2>
+          }}>{t("share.the_note")}</h2>
           <div style={{
             padding: "20px 22px", borderRadius: 10,
             background: "oklch(98% 0.025 75)",

@@ -9,6 +9,7 @@ import { Kbd, ghostBtn, primaryBtn, secondaryBtn } from "../primitives";
 import { StarRow } from "../star-row";
 import { BulkActionBar, DigestBanner } from "../dialogs";
 import { useEventLogger, useStats } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
 
 interface Props {
   stars: Star[];
@@ -74,6 +75,7 @@ function SkeletonRows() {
 }
 
 function LoadErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const t = useT();
   return (
     <div style={{
       padding: "60px 40px", display: "flex", flexDirection: "column",
@@ -86,17 +88,18 @@ function LoadErrorState({ message, onRetry }: { message: string; onRetry: () => 
       }}>
         <Icon name="bug" size={24} />
       </div>
-      <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px" }}>Couldn't load your stars</h2>
+      <h2 style={{ fontSize: 18, fontWeight: 600, margin: "0 0 4px" }}>{t("inbox.load_error.title")}</h2>
       <p style={{ fontSize: 12.5, color: "var(--ink-2)", maxWidth: 360, margin: "0 0 16px", lineHeight: 1.55 }}>
         {message}
       </p>
-      <button onClick={onRetry} style={primaryBtn}>Retry sync</button>
+      <button onClick={onRetry} style={primaryBtn}>{t("inbox.load_error.retry")}</button>
     </div>
   );
 }
 
 function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
   const router = useRouter();
+  const t = useT();
   return (
     <div style={{ padding: "60px 40px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
       <div style={{
@@ -105,14 +108,14 @@ function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
         display: "flex", alignItems: "center", justifyContent: "center",
         color: "oklch(45% 0.13 145)", marginBottom: 18,
       }}><Icon name="check" size={28} /></div>
-      <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.01em" }}>Inbox Zero</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.01em" }}>{t("inbox.inbox_zero.title")}</h2>
       <p style={{ fontSize: 13.5, color: "var(--ink-2)", margin: 0, maxWidth: 360, lineHeight: 1.55 }}>
-        You've processed every starred repo. This week you triaged{" "}
-        <b style={{ color: "var(--ink-0)" }}>{processedThisWeek}</b> repos.
+        {t("inbox.inbox_zero.body")}{" "}
+        <b style={{ color: "var(--ink-0)" }}>{processedThisWeek}</b> {t("inbox.inbox_zero.body_repos")}
       </p>
       <div style={{ marginTop: 24, display: "flex", gap: 8 }}>
-        <button style={primaryBtn} onClick={() => router.push("/review")}>Open Review</button>
-        <button style={secondaryBtn} onClick={() => router.push("/stars")}>Browse all stars</button>
+        <button style={primaryBtn} onClick={() => router.push("/review")}>{t("inbox.inbox_zero.open_review")}</button>
+        <button style={secondaryBtn} onClick={() => router.push("/stars")}>{t("inbox.inbox_zero.browse_all")}</button>
       </div>
     </div>
   );
@@ -124,6 +127,7 @@ export function InboxScreen({
   onOpenDigest, digestVisible, onDismissDigest,
 }: Props) {
   const router = useRouter();
+  const t = useT();
   const inboxStars = stars.filter((s) => s.status === "inbox");
   const statsQ = useStats();
   const log = useEventLogger();
@@ -186,8 +190,8 @@ export function InboxScreen({
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <Topbar
-        title="Inbox"
-        subtitle={`${inboxStars.length} unprocessed`}
+        title={t("sidebar.inbox")}
+        subtitle={`${inboxStars.length} ${t("common.unprocessed")}`}
         onSync={onSync}
         syncing={syncing}
         notifications={notifications}
@@ -196,8 +200,8 @@ export function InboxScreen({
         onOpenPalette={onOpenPalette}
         right={
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginRight: 4 }}>
-            <Stat label="processed this week" value={String(statsQ.data?.processed_this_week ?? "—")} tone="accent" />
-            <Stat label="new this week" value={String(statsQ.data?.new_this_week ?? "—")} />
+            <Stat label={t("common.processed_this_week")} value={String(statsQ.data?.processed_this_week ?? "—")} tone="accent" />
+            <Stat label={t("common.new_this_week")} value={String(statsQ.data?.new_this_week ?? "—")} />
           </div>
         }
       />
@@ -211,8 +215,8 @@ export function InboxScreen({
           fontSize: 12, color: "oklch(40% 0.1 60)",
         }}>
           <Icon name="timer" size={13} />
-          <span><b>{stale.length}</b> have been sitting in your inbox for over 14 days.</span>
-          <button style={ghostBtn} onClick={() => router.push("/review")}>Triage now</button>
+          <span><b>{stale.length}</b> {t("inbox.stale_banner")}</span>
+          <button style={ghostBtn} onClick={() => router.push("/review")}>{t("inbox.triage_now")}</button>
         </div>
       )}
 
@@ -245,13 +249,13 @@ export function InboxScreen({
         display: "flex", alignItems: "center", gap: 18,
         fontSize: 11.5, color: "var(--ink-3)",
       }}>
-        <span style={hintItem}><Kbd>j</Kbd><Kbd>k</Kbd> nav</span>
-        <span style={hintItem}><Kbd>o</Kbd> open</span>
-        <span style={hintItem}><Kbd>s</Kbd> kept</span>
-        <span style={hintItem}><Kbd>r</Kbd> reviewing</span>
-        <span style={hintItem}><Kbd>d</Kbd> dropped</span>
-        <span style={hintItem}><Kbd>e</Kbd> archive</span>
-        <span style={hintItem}><Kbd>⇧</Kbd>click to select range</span>
+        <span style={hintItem}><Kbd>j</Kbd><Kbd>k</Kbd> {t("inbox.hint.nav")}</span>
+        <span style={hintItem}><Kbd>o</Kbd> {t("inbox.hint.open")}</span>
+        <span style={hintItem}><Kbd>s</Kbd> {t("inbox.hint.kept")}</span>
+        <span style={hintItem}><Kbd>r</Kbd> {t("inbox.hint.reviewing")}</span>
+        <span style={hintItem}><Kbd>d</Kbd> {t("inbox.hint.dropped")}</span>
+        <span style={hintItem}><Kbd>e</Kbd> {t("inbox.hint.archive")}</span>
+        <span style={hintItem}><Kbd>⇧</Kbd>{t("inbox.hint.range")}</span>
         <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>
           {selectedId
             ? `${stars.find((s) => s.id === selectedId)?.owner}/${stars.find((s) => s.id === selectedId)?.name}`

@@ -6,6 +6,8 @@ import { TAG_COLOR, miniBtn } from "./primitives";
 import { SMART_INBOXES, fmtRelative } from "@/lib/mock-data";
 import type { Star, User } from "@/lib/types";
 import { useTagsCtx } from "./providers";
+import { useT } from "@/lib/i18n/context";
+import type { TKey } from "@/lib/i18n/dict";
 
 interface SidebarProps {
   route: string;
@@ -49,11 +51,20 @@ export function Sidebar({
   theme, onToggleTheme, onOpenPalette, onExport,
 }: SidebarProps) {
   const { tags: TAGS } = useTagsCtx();
+  const t = useT();
   const items = [
-    { id: "inbox", label: "Inbox", icon: "inbox" as const, count: counts.inbox, badge: null as string | null },
-    { id: "review", label: "Review", icon: "review" as const, count: counts.review, badge: counts.review > 0 ? "•" : null },
-    { id: "stars", label: "Stars", icon: "star" as const, count: counts.total, badge: null },
+    { id: "inbox", label: t("sidebar.inbox"), icon: "inbox" as const, count: counts.inbox, badge: null as string | null },
+    { id: "review", label: t("sidebar.review"), icon: "review" as const, count: counts.review, badge: counts.review > 0 ? "•" : null },
+    { id: "stars", label: t("sidebar.stars"), icon: "star" as const, count: counts.total, badge: null },
   ];
+
+  const smartLabelKeys: Record<string, TKey> = {
+    untagged: "smart.untagged",
+    watching: "smart.watching",
+    "with-notes": "smart.with_notes",
+    stale: "smart.stale",
+    kept: "smart.kept",
+  };
 
   return (
     <aside style={{
@@ -70,7 +81,7 @@ export function Sidebar({
           color: "white", fontWeight: 700, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
         }}>★</div>
         <div style={{ fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em" }}>StarBase</div>
-        <button onClick={onOpenPalette} title="Command palette (⌘K)" style={{
+        <button onClick={onOpenPalette} title={t("sidebar.command_palette") + " (⌘K)"} style={{
           marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4,
           padding: "2px 6px", borderRadius: 5, border: "1px solid var(--border)",
           background: "var(--surface-0)", color: "var(--ink-3)",
@@ -96,7 +107,7 @@ export function Sidebar({
         })}
       </nav>
 
-      <SidebarSection label="Smart filters" />
+      <SidebarSection label={t("sidebar.smart_filters")} />
       <nav style={{ padding: "0 8px", display: "flex", flexDirection: "column", gap: 1 }}>
         {SMART_INBOXES.map((si) => {
           const active = smartInbox === si.id;
@@ -107,14 +118,16 @@ export function Sidebar({
               <span style={{ color: active ? "var(--accent)" : "var(--ink-2)", display: "flex" }}>
                 <Icon name={si.icon as any} size={14} />
               </span>
-              <span style={{ flex: 1, opacity: 0.92 }}>{si.label}</span>
+              <span style={{ flex: 1, opacity: 0.92 }}>
+                {smartLabelKeys[si.id] ? t(smartLabelKeys[si.id]) : si.label}
+              </span>
               <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{count}</span>
             </button>
           );
         })}
       </nav>
 
-      <SidebarSection label="Tags" />
+      <SidebarSection label={t("sidebar.tags")} />
       <div style={{ padding: "0 8px", display: "flex", flexDirection: "column", gap: 1, overflow: "auto", flex: 1 }}>
         {TAGS.slice(0, 7).map((tag) => {
           const count = stars.filter((s) => s.tags.includes(tag.id) && s.status !== "archived").length;
@@ -140,14 +153,14 @@ export function Sidebar({
       </div>
 
       <div style={{ padding: "8px 8px 4px", borderTop: "1px solid var(--border)", display: "flex", gap: 4 }}>
-        <button onClick={onExport} title="Export library" style={miniBtn}>
+        <button onClick={onExport} title={t("dialog.export.title")} style={miniBtn}>
           <Icon name="extLink" size={13} />
         </button>
-        <button onClick={onToggleTheme} title="Toggle theme" style={miniBtn}>
+        <button onClick={onToggleTheme} title={t("settings.theme")} style={miniBtn}>
           {theme === "dark" ? <SunIcon size={13} /> : <MoonIcon size={13} />}
         </button>
         <div style={{ flex: 1 }} />
-        <button onClick={() => setRoute("settings")} title="Settings" style={miniBtn}>
+        <button onClick={() => setRoute("settings")} title={t("settings.title")} style={miniBtn}>
           <Icon name="settings" size={13} />
         </button>
       </div>
@@ -163,7 +176,7 @@ export function Sidebar({
           <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {user.username}
           </div>
-          <div style={{ fontSize: 10.5, color: "var(--ink-3)" }}>synced {fmtRelative(user.lastSync)}</div>
+          <div style={{ fontSize: 10.5, color: "var(--ink-3)" }}>{t("sidebar.synced")} {fmtRelative(user.lastSync)}</div>
         </div>
       </div>
     </aside>

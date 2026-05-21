@@ -4,10 +4,12 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GithubMark, Icon } from "@/components/icons";
 import { useMe } from "@/lib/queries";
+import { useT } from "@/lib/i18n/context";
 
 export default function Landing() {
   const router = useRouter();
   const me = useMe();
+  const t = useT();
 
   useEffect(() => {
     // Already signed in? Skip the landing.
@@ -36,14 +38,13 @@ export default function Landing() {
         margin: 0, fontSize: 44, fontWeight: 600, letterSpacing: "-0.025em",
         textAlign: "center", maxWidth: 720, lineHeight: 1.1,
       }}>
-        Process your GitHub stars like an inbox.
+        {t("landing.title")}
       </h1>
       <p style={{
         margin: "18px 0 0", fontSize: 16, color: "var(--ink-2)",
         textAlign: "center", maxWidth: 560, lineHeight: 1.55,
       }}>
-        Triage, tag, take notes, and rediscover. Turn drive-by stars into a
-        searchable knowledge base — instead of a graveyard.
+        {t("landing.body")}
       </p>
 
       <a href="/api/auth/github" style={{
@@ -54,12 +55,12 @@ export default function Landing() {
         boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
       }}>
         <GithubMark size={16} />
-        Continue with GitHub
+        {t("landing.cta")}
         <Icon name="arrowR" size={14} />
       </a>
 
       <div style={{ marginTop: 12, fontSize: 12, color: "var(--ink-3)" }}>
-        Read-only access to your stars. Notes & tags stay private.
+        {t("landing.privacy")}
       </div>
 
       <div style={{
@@ -67,21 +68,9 @@ export default function Landing() {
         display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
         gap: 16, maxWidth: 880, width: "100%",
       }}>
-        <Feature
-          icon="inbox"
-          title="Inbox-first"
-          text="New stars land in an inbox. You triage, then they leave. The list goes to zero."
-        />
-        <Feature
-          icon="note"
-          title="Notes & tags"
-          text="Capture why you cared. Searchable, exportable to Markdown, Obsidian, or JSON."
-        />
-        <Feature
-          icon="review"
-          title="Rediscover"
-          text="Weekly Review surfaces what you forgot — and what's worth a second look."
-        />
+        <Feature icon="inbox" title={t("landing.feature.inbox")} text={t("landing.feature.inbox_body")} />
+        <Feature icon="note" title={t("landing.feature.notes")} text={t("landing.feature.notes_body")} />
+        <Feature icon="review" title={t("landing.feature.review")} text={t("landing.feature.review_body")} />
       </div>
     </div>
   );

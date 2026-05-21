@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import type { Tag } from "@/lib/types";
 import { TAGS as MOCK_TAGS } from "@/lib/mock-data";
 import { useTags } from "@/lib/queries";
+import { I18nProvider } from "@/lib/i18n/context";
 import { Toasts } from "./toasts";
 
 // Single global query client per browser tab.
@@ -31,10 +32,12 @@ export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(() => getQueryClient());
   return (
     <QueryClientProvider client={client}>
-      <TagsProvider>
-        {children}
-        <Toasts />
-      </TagsProvider>
+      <I18nProvider>
+        <TagsProvider>
+          {children}
+          <Toasts />
+        </TagsProvider>
+      </I18nProvider>
     </QueryClientProvider>
   );
 }
