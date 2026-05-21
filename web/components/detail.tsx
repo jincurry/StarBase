@@ -292,7 +292,7 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
               color: active ? s.fg : "var(--ink-2)",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot }} />
-              {s.label}
+              {t(("status." + k) as TKey)}
               {s.key !== "—" && <Kbd>{s.key.toLowerCase()}</Kbd>}
             </button>
           );

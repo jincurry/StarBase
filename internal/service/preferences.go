@@ -10,9 +10,10 @@ import (
 )
 
 type Preferences struct {
-	StaleInboxDays       int       `json:"stale_inbox_days"`
-	AutoArchiveOnUnstar  bool      `json:"auto_archive_on_unstar"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	StaleInboxDays      int       `json:"stale_inbox_days"`
+	AutoArchiveOnUnstar bool      `json:"auto_archive_on_unstar"`
+	Locale              string    `json:"locale"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type PreferencesService struct {
@@ -24,13 +25,12 @@ func NewPreferences(db *pgxpool.Pool) *PreferencesService { return &PreferencesS
 func (s *PreferencesService) Get(ctx context.Context, userID int64) (*Preferences, error) {
 	var p Preferences
 	err := s.db.QueryRow(ctx, `
-		SELECT stale_inbox_days, auto_archive_on_unstar, updated_at
+		SELECT stale_inbox_days, auto_archive_on_unstar, COALESCE(locale,'en'), updated_at
 		FROM user_preferences WHERE user_id=$1
-	`, userID).Scan(&p.StaleInboxDays, &p.AutoArchiveOnUnstar, &p.UpdatedAt)
+	`, userID).Scan(&p.StaleInboxDays, &p.AutoArchiveOnUnstar, &p.Locale, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			// Defaults — match schema.
-			return &Preferences{StaleInboxDays: 14, AutoArchiveOnUnstar: true}, nil
+			return &Preferences{StaleInboxDays: 14, AutoArchiveOnUnstar: true, Locale: "en"}, nil
 		}
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (s *PreferencesService) Get(ctx context.Context, userID int64) (*Preference
 }
 
 // Update overrides any provided fields; nil pointers are left alone.
-func (s *PreferencesService) Update(ctx context.Context, userID int64, staleDays *int, autoArchive *bool) (*Preferences, error) {
+func (s *PreferencesService) Update(ctx context.Context, userID int64, staleDays *int, autoArchive *bool, locale *string) (*Preferences, error) {
 	cur, err := s.Get(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -52,14 +52,24 @@ func (s *PreferencesService) Update(ctx context.Context, userID int64, staleDays
 	if autoArchive != nil {
 		cur.AutoArchiveOnUnstar = *autoArchive
 	}
+	if locale != nil {
+		// Only accept locales we actually ship — silently coerce others.
+		switch *locale {
+		case "en", "zh":
+			cur.Locale = *locale
+		default:
+			return nil, errors.New("unsupported locale")
+		}
+	}
 	_, err = s.db.Exec(ctx, `
-		INSERT INTO user_preferences (user_id, stale_inbox_days, auto_archive_on_unstar, updated_at)
-		VALUES ($1, $2, $3, now())
+		INSERT INTO user_preferences (user_id, stale_inbox_days, auto_archive_on_unstar, locale, updated_at)
+		VALUES ($1, $2, $3, $4, now())
 		ON CONFLICT (user_id) DO UPDATE
 		   SET stale_inbox_days       = EXCLUDED.stale_inbox_days,
 		       auto_archive_on_unstar = EXCLUDED.auto_archive_on_unstar,
+		       locale                 = EXCLUDED.locale,
 		       updated_at             = now()
-	`, userID, cur.StaleInboxDays, cur.AutoArchiveOnUnstar)
+	`, userID, cur.StaleInboxDays, cur.AutoArchiveOnUnstar, cur.Locale)
 	if err != nil {
 		return nil, err
 	}

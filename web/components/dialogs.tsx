@@ -521,7 +521,7 @@ export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDism
         background: "var(--accent)", color: "white",
         fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
       }}>{t("notif.digest_open")}</button>
-      <button onClick={onDismiss} title="Dismiss" style={{
+      <button onClick={onDismiss} title={t("detail.close")} style={{
         background: "transparent", border: "none", color: "var(--ink-3)",
         cursor: "pointer", padding: 4, display: "flex",
       }}><Icon name="x" size={13} /></button>

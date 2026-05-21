@@ -30,14 +30,15 @@ func (h *PreferencesHandler) Get(c *gin.Context) {
 func (h *PreferencesHandler) Update(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	var body struct {
-		StaleInboxDays      *int  `json:"stale_inbox_days"`
-		AutoArchiveOnUnstar *bool `json:"auto_archive_on_unstar"`
+		StaleInboxDays      *int    `json:"stale_inbox_days"`
+		AutoArchiveOnUnstar *bool   `json:"auto_archive_on_unstar"`
+		Locale              *string `json:"locale"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		respond(c, apperror.BadRequest("Invalid request body"))
 		return
 	}
-	p, err := h.prefs.Update(c.Request.Context(), u.ID, body.StaleInboxDays, body.AutoArchiveOnUnstar)
+	p, err := h.prefs.Update(c.Request.Context(), u.ID, body.StaleInboxDays, body.AutoArchiveOnUnstar, body.Locale)
 	if err != nil {
 		respond(c, apperror.BadRequest(err.Error()))
 		return

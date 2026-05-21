@@ -191,11 +191,11 @@ export const api = {
 
   // Preferences
   getPrefs: () =>
-    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; updated_at: string }>(
+    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; locale: string; updated_at: string }>(
       "/api/preferences"
     ),
-  setPrefs: (body: { stale_inbox_days?: number; auto_archive_on_unstar?: boolean }) =>
-    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; updated_at: string }>(
+  setPrefs: (body: { stale_inbox_days?: number; auto_archive_on_unstar?: boolean; locale?: string }) =>
+    http<{ stale_inbox_days: number; auto_archive_on_unstar: boolean; locale: string; updated_at: string }>(
       "/api/preferences",
       { method: "PUT", body: JSON.stringify(body) }
     ),
