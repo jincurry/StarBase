@@ -267,6 +267,28 @@ func (c *Client) GetRepo(ctx context.Context, token, fullName string) (*Repo, er
 	return &r, nil
 }
 
+// Release is the subset of GitHub's release payload we care about.
+type Release struct {
+	TagName     string    `json:"tag_name"`
+	Name        string    `json:"name"`
+	PublishedAt time.Time `json:"published_at"`
+}
+
+// GetLatestRelease returns the most recent published release for a repo.
+// Returns ErrNotFound for repos that have never cut a release.
+func (c *Client) GetLatestRelease(ctx context.Context, token, fullName string) (*Release, error) {
+	res, err := c.do(ctx, token, http.MethodGet, "/repos/"+fullName+"/releases/latest", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	var r Release
+	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
 // GetReadme fetches the rendered README for a repo. GitHub returns the
 // content base64-encoded; we decode and return it as a plain string.
 func (c *Client) GetReadme(ctx context.Context, token, fullName string) (string, error) {

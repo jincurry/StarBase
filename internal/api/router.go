@@ -43,6 +43,7 @@ func New(d Deps) *gin.Engine {
 	r.Use(middleware.RequestID())
 	r.Use(middleware.AccessLog(log))
 	r.Use(middleware.SecurityHeaders(d.Cfg.CookieSecure))
+	r.Use(middleware.BodyLimit(1 << 20)) // 1 MiB
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{d.Cfg.WebURL},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},

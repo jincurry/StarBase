@@ -46,8 +46,9 @@ func main() {
 	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)
 	notif := service.NewNotifications(pool)
 	keep := service.NewHousekeeping(pool)
+	releases := service.NewReleases(pool, gh, auth)
 
-	sched := worker.NewScheduler(pool, syncSvc, notif, keep, log)
+	sched := worker.NewScheduler(pool, syncSvc, notif, keep, releases, log)
 	sched.Run(ctx)
 
 	p := worker.New(syncSvc, cfg.WorkerConcurrency, log)

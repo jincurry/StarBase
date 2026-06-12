@@ -350,6 +350,12 @@ func (s *StarService) Patch(ctx context.Context, userID, starID int64, p Patch) 
 		idx++
 	}
 	if p.Note != nil {
+		// Generous but bounded — keeps a single row from ballooning and
+		// keeps the trigram index on notes effective.
+		const maxNoteLen = 100_000
+		if len(*p.Note) > maxNoteLen {
+			return nil, fmt.Errorf("%w: note exceeds %d characters", ErrInvalidInput, maxNoteLen)
+		}
 		sets = append(sets, fmt.Sprintf("note = $%d", idx))
 		args = append(args, *p.Note)
 		idx++

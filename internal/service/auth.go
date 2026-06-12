@@ -20,19 +20,21 @@ import (
 const SessionTTL = 30 * 24 * time.Hour
 
 type AuthService struct {
-	db   *pgxpool.Pool
-	cfg  *config.Config
-	gh   *github.Client
-	aead *crypto.AEAD
+	db    *pgxpool.Pool
+	cfg   *config.Config
+	gh    *github.Client
+	aead  *crypto.AEAD
 	oauth *oauth2.Config
+	cache *sessionCache
 }
 
 func NewAuth(cfg *config.Config, db *pgxpool.Pool, gh *github.Client, aead *crypto.AEAD) *AuthService {
 	return &AuthService{
-		db:   db,
-		cfg:  cfg,
-		gh:   gh,
-		aead: aead,
+		db:    db,
+		cfg:   cfg,
+		gh:    gh,
+		aead:  aead,
+		cache: newSessionCache(30 * time.Second),
 		oauth: &oauth2.Config{
 			ClientID:     cfg.GitHubClientID,
 			ClientSecret: cfg.GitHubClientSecret,
@@ -102,6 +104,9 @@ func (a *AuthService) UserFromSession(ctx context.Context, token string) (*model
 	if token == "" {
 		return nil, errors.New("no session")
 	}
+	if u, ok := a.cache.get(token); ok {
+		return u, nil
+	}
 	var u model.User
 	err := a.db.QueryRow(ctx, `
 		SELECT u.id, u.github_id, u.username, COALESCE(u.avatar_url,''), u.created_at, u.updated_at
@@ -115,10 +120,12 @@ func (a *AuthService) UserFromSession(ctx context.Context, token string) (*model
 		}
 		return nil, err
 	}
+	a.cache.put(token, &u)
 	return &u, nil
 }
 
 func (a *AuthService) Logout(ctx context.Context, token string) error {
+	a.cache.evict(token)
 	_, err := a.db.Exec(ctx, `DELETE FROM sessions WHERE token = $1`, token)
 	return err
 }

@@ -122,6 +122,38 @@ func TestGetMeDecodesUser(t *testing.T) {
 	}
 }
 
+func TestGetLatestReleaseDecodes(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/releases/latest") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"tag_name":"v1.2.3","name":"Big fixes","published_at":"2026-01-15T10:00:00Z"}`))
+	}))
+	defer srv.Close()
+	c := newTestClient(srv)
+	rel, err := c.GetLatestRelease(context.Background(), "tok", "o/r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rel.TagName != "v1.2.3" || rel.Name != "Big fixes" {
+		t.Fatalf("decoded %+v", rel)
+	}
+}
+
+func TestGetLatestReleaseNoReleases(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+	c := newTestClient(srv)
+	_, err := c.GetLatestRelease(context.Background(), "tok", "o/r")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("err=%v want ErrNotFound", err)
+	}
+}
+
 func TestGetReadmeDecodesBase64(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/readme") {

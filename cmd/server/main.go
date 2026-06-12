@@ -69,6 +69,11 @@ func main() {
 		Addr:              cfg.HTTPAddr,
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		// Write timeout has to cover slow paths like the AI endpoints
+		// (Claude calls cap at 60s in the AI service's own client).
+		WriteTimeout: 90 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 	go func() {
 		log.Info("server listening", "addr", cfg.HTTPAddr)

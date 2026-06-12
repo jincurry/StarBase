@@ -19,31 +19,37 @@ import (
 // Both kick off using the same sync_jobs queue, so multiple workers across
 // processes still get exactly-once semantics via FOR UPDATE SKIP LOCKED.
 type Scheduler struct {
-	db     *pgxpool.Pool
-	sync   *service.SyncService
-	notif  *service.NotificationService
-	keep   *service.HousekeepingService
-	log    *slog.Logger
+	db       *pgxpool.Pool
+	sync     *service.SyncService
+	notif    *service.NotificationService
+	keep     *service.HousekeepingService
+	releases *service.ReleaseService
+	log      *slog.Logger
 
 	IncrementalInterval  time.Duration
 	IncrementalMinAge    time.Duration
 	ReconcileInterval    time.Duration
 	StaleScanInterval    time.Duration
 	HousekeepingInterval time.Duration
+	ReleaseInterval      time.Duration
+	ReleaseBatch         int
 }
 
-func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, notif *service.NotificationService, keep *service.HousekeepingService, log *slog.Logger) *Scheduler {
+func NewScheduler(db *pgxpool.Pool, sync *service.SyncService, notif *service.NotificationService, keep *service.HousekeepingService, releases *service.ReleaseService, log *slog.Logger) *Scheduler {
 	return &Scheduler{
 		db:                   db,
 		sync:                 sync,
 		notif:                notif,
 		keep:                 keep,
+		releases:             releases,
 		log:                  log,
 		IncrementalInterval:  30 * time.Minute,
 		IncrementalMinAge:    2 * time.Hour,
 		ReconcileInterval:    24 * time.Hour,
 		StaleScanInterval:    6 * time.Hour,
 		HousekeepingInterval: 12 * time.Hour,
+		ReleaseInterval:      6 * time.Hour,
+		ReleaseBatch:         100,
 	}
 }
 
@@ -54,6 +60,18 @@ func (s *Scheduler) Run(ctx context.Context) {
 	go s.loop(ctx, "reconcile", 30*time.Minute, s.ReconcileInterval, s.tickReconcile)
 	go s.loop(ctx, "stale", 10*time.Minute, s.StaleScanInterval, s.tickStale)
 	go s.loop(ctx, "housekeeping", 2*time.Minute, s.HousekeepingInterval, s.tickHousekeeping)
+	go s.loop(ctx, "releases", 15*time.Minute, s.ReleaseInterval, s.tickReleases)
+}
+
+func (s *Scheduler) tickReleases(ctx context.Context) error {
+	checked, notified, err := s.releases.CheckWatched(ctx, s.ReleaseBatch)
+	if err != nil {
+		return err
+	}
+	if notified > 0 {
+		s.log.Info("release check", "repos_checked", checked, "notifications", notified)
+	}
+	return nil
 }
 
 func (s *Scheduler) tickHousekeeping(ctx context.Context) error {
