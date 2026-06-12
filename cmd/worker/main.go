@@ -38,7 +38,9 @@ func main() {
 		log.Error("aead", "err", err)
 		os.Exit(1)
 	}
-	gh := github.New(cfg.GitHubRatePerSec)
+	// Worker takes 75% of the GITHUB_RATE_PER_SEC budget; the server
+	// uses the other 25% for on-demand metadata refreshes.
+	gh := github.New(cfg.GitHubRatePerSec * 0.75)
 	auth := service.NewAuth(cfg, pool, gh, aead)
 	event := service.NewEvent(pool)
 	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)

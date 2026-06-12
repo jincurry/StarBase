@@ -6,7 +6,7 @@ import { Topbar } from "../topbar";
 import { Icon } from "../icons";
 import { LangDot, StatusPill } from "../primitives";
 import { fmtNumber, fmtRelative } from "@/lib/mock-data";
-import { useEventLogger, useReview } from "@/lib/queries";
+import { useEventLogger, usePreferences, useReview, useReviewSeen } from "@/lib/queries";
 import { useT } from "@/lib/i18n/context";
 
 interface Props {
@@ -21,6 +21,9 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
   // when the API hasn't returned yet (or in demo mode).
   const review = useReview();
   const log = useEventLogger();
+  const markSeen = useReviewSeen();
+  const prefsQ = usePreferences();
+  const staleDays = prefsQ.data?.stale_inbox_days ?? 14;
   const t = useT();
   const { recently, stale, rediscover } = useMemo(() => {
     if (review.data) {
@@ -33,7 +36,7 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
     const now = Date.now();
     return {
       recently: stars.filter((s) => (now - +new Date(s.starredAt)) / 86400000 < 7 && s.status !== "archived"),
-      stale: stars.filter((s) => s.status === "inbox" && (now - +new Date(s.starredAt)) / 86400000 > 14),
+      stale: stars.filter((s) => s.status === "inbox" && (now - +new Date(s.starredAt)) / 86400000 > staleDays),
       rediscover: stars
         .filter((s) => s.status === "kept" || s.status === "archived")
         .sort((a, b) => {
@@ -43,7 +46,7 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
         })
         .slice(0, 5),
     };
-  }, [review.data, stars]);
+  }, [review.data, stars, staleDays]);
 
   useEffect(() => {
     log("review_page_viewed", {
@@ -64,6 +67,10 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
     } else {
       log("review_action_taken", { section, action: "open" });
     }
+    // Bump last_reviewed_at so the same items don't keep dominating
+    // Rediscover. Fire-and-forget — the open should never be blocked
+    // on the bookkeeping write.
+    markSeen.mutate(s.id);
     onOpen(s.id);
   };
 
@@ -77,7 +84,7 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
           tone="oklch(60% 0.16 255)" tint="oklch(96% 0.04 255)"
           stars={recently} onOpen={(id) => openWithLog(recently.find((s) => s.id === id)!, "recently")} />
         <ReviewSection icon="timer" title={t("review.stale.title")}
-          subtitle={`${stale.length} ${t("review.stale.subtitle")}`}
+          subtitle={`${stale.length} ${t("review.stale.subtitle_prefix")} ${staleDays} ${t("review.stale.subtitle_suffix")}`}
           tone="oklch(58% 0.13 60)" tint="oklch(97% 0.04 75)"
           stars={stale} onOpen={(id) => openWithLog(stale.find((s) => s.id === id)!, "stale")} />
         <ReviewSection icon="review" title={t("review.rediscover.title")}

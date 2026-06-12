@@ -42,7 +42,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	gh := github.New(cfg.GitHubRatePerSec)
+	// GITHUB_RATE_PER_SEC is a combined budget split between this process
+	// and the worker (server: 25%, worker: 75%). Server-side calls are
+	// limited to on-demand metadata refreshes + AI README fetches, so
+	// the small share is plenty.
+	gh := github.New(cfg.GitHubRatePerSec * 0.25)
 	auth := service.NewAuth(cfg, pool, gh, aead)
 	event := service.NewEvent(pool)
 	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)

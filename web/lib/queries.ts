@@ -369,6 +369,22 @@ export function useCreateTag() {
   });
 }
 
+export function useReviewSeen() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (starId: number) => api.reviewSeen(starId),
+    onSuccess: (_d, starId) => {
+      // Bump last_reviewed_at in the cached star so the Rediscover
+      // ordering reflects the change without a roundtrip.
+      qc.setQueryData<Star[]>(["stars", "all"], (cur) =>
+        cur ? cur.map((s) => (s.id === starId ? { ...s, lastReviewedAt: new Date().toISOString() } : s)) : cur
+      );
+      qc.invalidateQueries({ queryKey: ["review"] });
+    },
+    // No toast on error — this is fire-and-forget UX.
+  });
+}
+
 export function useSyncMutation() {
   const qc = useQueryClient();
   return useMutation({

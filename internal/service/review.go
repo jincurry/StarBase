@@ -37,8 +37,10 @@ func (s *ReviewService) Build(ctx context.Context, userID int64) (*ReviewPayload
 	}
 	stale, err := s.byIDs(ctx, userID, `
 		SELECT id FROM user_starred_repos
-		WHERE user_id=$1 AND status='inbox'
-		  AND starred_at < now() - interval '14 days'
+		WHERE user_id=$1 AND status='inbox' AND is_starred=TRUE
+		  AND starred_at < now() - (COALESCE((
+		      SELECT stale_inbox_days FROM user_preferences WHERE user_id=$1
+		    ), 14) || ' days')::interval
 		ORDER BY starred_at ASC
 		LIMIT 20
 	`)
@@ -47,7 +49,7 @@ func (s *ReviewService) Build(ctx context.Context, userID int64) (*ReviewPayload
 	}
 	rediscover, err := s.byIDs(ctx, userID, `
 		SELECT id FROM user_starred_repos
-		WHERE user_id=$1 AND status IN ('kept','archived')
+		WHERE user_id=$1 AND is_starred=TRUE AND status IN ('kept','archived')
 		ORDER BY last_reviewed_at ASC NULLS FIRST, starred_at ASC
 		LIMIT 5
 	`)

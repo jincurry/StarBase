@@ -8,7 +8,7 @@ import { Icon } from "../icons";
 import { Kbd, ghostBtn, primaryBtn, secondaryBtn } from "../primitives";
 import { StarRow } from "../star-row";
 import { BulkActionBar, DigestBanner } from "../dialogs";
-import { useEventLogger, useStats } from "@/lib/queries";
+import { useEventLogger, usePreferences, useStats } from "@/lib/queries";
 import { useT } from "@/lib/i18n/context";
 
 interface Props {
@@ -130,6 +130,8 @@ export function InboxScreen({
   const t = useT();
   const inboxStars = stars.filter((s) => s.status === "inbox");
   const statsQ = useStats();
+  const prefsQ = usePreferences();
+  const staleDays = prefsQ.data?.stale_inbox_days ?? 14;
   const log = useEventLogger();
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
 
@@ -185,7 +187,7 @@ export function InboxScreen({
   };
   const selectable = checkedIds.size > 0;
 
-  const stale = inboxStars.filter((s) => (Date.now() - new Date(s.starredAt).getTime()) / 86400000 > 14);
+  const stale = inboxStars.filter((s) => (Date.now() - new Date(s.starredAt).getTime()) / 86400000 > staleDays);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
@@ -215,7 +217,7 @@ export function InboxScreen({
           fontSize: 12, color: "oklch(40% 0.1 60)",
         }}>
           <Icon name="timer" size={13} />
-          <span><b>{stale.length}</b> {t("inbox.stale_banner")}</span>
+          <span><b>{stale.length}</b> {t("inbox.stale_banner_prefix")} {staleDays} {t("inbox.stale_banner_suffix")}</span>
           <button style={ghostBtn} onClick={() => router.push("/review")}>{t("inbox.triage_now")}</button>
         </div>
       )}

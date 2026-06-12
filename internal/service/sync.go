@@ -243,7 +243,7 @@ func (s *SyncService) runInitial(ctx context.Context, job *model.SyncJob, token 
 		} else {
 			archived++
 		}
-		if err := s.upsertStar(ctx, job.UserID, e, status, true); err != nil {
+		if err := s.upsertStar(ctx, job.UserID, e, status); err != nil {
 			s.emit(ctx, job.UserID, "sync_failed", map[string]any{"job_type": "initial", "error": err.Error()})
 			return err
 		}
@@ -282,7 +282,7 @@ func (s *SyncService) runIncremental(ctx context.Context, job *model.SyncJob, to
 		if since != nil && !e.StarredAt.After(*since) {
 			return errStopIter // sentinel: short-circuit, GitHub returns newest-first
 		}
-		if err := s.upsertStar(ctx, job.UserID, e, model.StatusInbox, false); err != nil {
+		if err := s.upsertStar(ctx, job.UserID, e, model.StatusInbox); err != nil {
 			return err
 		}
 		added++
@@ -319,7 +319,7 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 	count := 0
 	err := s.gh.IterStarred(ctx, token, func(e github.StarredEntry) error {
 		seen[e.Repo.ID] = true
-		if err := s.upsertStar(ctx, job.UserID, e, model.StatusInbox, false); err != nil {
+		if err := s.upsertStar(ctx, job.UserID, e, model.StatusInbox); err != nil {
 			return err
 		}
 		count++
@@ -358,18 +358,39 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 	}
 	rows.Close()
 
+	// Read the user's preference. If auto_archive_on_unstar is true we
+	// flip the status to 'archived' as well; otherwise the row stays at
+	// whatever status the user had set it to (notes / tags untouched).
+	autoArchive := true
+	_ = s.db.QueryRow(ctx,
+		`SELECT COALESCE(auto_archive_on_unstar, TRUE) FROM user_preferences WHERE user_id=$1`,
+		job.UserID,
+	).Scan(&autoArchive)
+
 	for _, p := range unstarred {
-		_, err := s.db.Exec(ctx, `
-			UPDATE user_starred_repos
-			   SET is_starred=FALSE, unstarred_at=now(), updated_at=now()
-			 WHERE id=$1
-		`, p.rowID)
+		if autoArchive {
+			_, err = s.db.Exec(ctx, `
+				UPDATE user_starred_repos
+				   SET is_starred=FALSE, unstarred_at=now(),
+				       status='archived', updated_at=now()
+				 WHERE id=$1
+			`, p.rowID)
+		} else {
+			_, err = s.db.Exec(ctx, `
+				UPDATE user_starred_repos
+				   SET is_starred=FALSE, unstarred_at=now(), updated_at=now()
+				 WHERE id=$1
+			`, p.rowID)
+		}
 		if err != nil {
 			return err
 		}
 	}
 	if len(unstarred) > 0 {
-		s.emit(ctx, job.UserID, "unstar_detected", map[string]any{"count": len(unstarred)})
+		s.emit(ctx, job.UserID, "unstar_detected", map[string]any{
+			"count":        len(unstarred),
+			"auto_archive": autoArchive,
+		})
 	}
 	s.emit(ctx, job.UserID, "sync_reconcile_completed", map[string]any{
 		"seen": count, "removed": len(unstarred),
@@ -391,7 +412,7 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 
 // upsertStar makes sure the repo row exists, then upserts the join row. It
 // never overwrites status / note / tags for existing rows.
-func (s *SyncService) upsertStar(ctx context.Context, userID int64, e github.StarredEntry, fallbackStatus model.Status, force bool) error {
+func (s *SyncService) upsertStar(ctx context.Context, userID int64, e github.StarredEntry, fallbackStatus model.Status) error {
 	repo := e.Repo
 	license := ""
 	if repo.License != nil {
