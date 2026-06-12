@@ -128,6 +128,7 @@ export function mapStar(s: ApiStar): Star {
     license: s.repo.license || null,
     starredAt: s.starred_at,
     lastReviewedAt: s.last_reviewed_at || null,
+    lastViewedAt: s.last_viewed_at || null,
     note: s.note || "",
     tags: s.tags || [],
     pushedAt: s.repo.repo_pushed_at || s.starred_at,

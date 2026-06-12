@@ -81,8 +81,9 @@ func New(d Deps) *gin.Engine {
 		api.GET("/auth/github", authH.Login)
 		api.GET("/auth/github/callback", authH.Callback)
 		api.POST("/auth/logout", authH.Logout)
-		// Public read-only view of a shared star.
-		api.GET("/share/:token", shareH.Public)
+		// Public read-only view of a shared star. Unauthenticated, so it
+		// gets a per-IP limiter to blunt token scanning.
+		api.GET("/share/:token", middleware.IPRateLimit(30, time.Minute), shareH.Public)
 	}
 
 	authed := api.Group("")

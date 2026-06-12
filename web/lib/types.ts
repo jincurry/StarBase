@@ -20,6 +20,7 @@ export interface Star {
   license: string | null;
   starredAt: string;
   lastReviewedAt: string | null;
+  lastViewedAt?: string | null;
   note: string;
   tags: number[];
   pushedAt: string;

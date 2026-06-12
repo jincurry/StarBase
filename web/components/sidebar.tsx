@@ -62,6 +62,7 @@ export function Sidebar({
     untagged: "smart.untagged",
     watching: "smart.watching",
     "with-notes": "smart.with_notes",
+    "recently-viewed": "smart.recently_viewed",
     stale: "smart.stale",
     kept: "smart.kept",
   };

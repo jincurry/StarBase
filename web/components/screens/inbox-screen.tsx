@@ -135,10 +135,13 @@ export function InboxScreen({
   const log = useEventLogger();
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
 
-  // Fire inbox_zero_reached and empty_state_viewed at most once per state change.
+  // Fire inbox_zero_reached only on the actual prev>0 → 0 transition.
+  // A brand-new account that lands here with zero stars never "reached"
+  // zero — they were always at zero.
   const prevInboxRef = useRef<number | null>(null);
   useEffect(() => {
-    if (prevInboxRef.current !== 0 && inboxStars.length === 0 && !loading) {
+    const prev = prevInboxRef.current;
+    if (prev != null && prev > 0 && inboxStars.length === 0 && !loading) {
       log("inbox_zero_reached", { processed_count_this_week: statsQ.data?.processed_this_week ?? 0 });
       log("empty_state_viewed", { state_type: "inbox_zero" });
     }

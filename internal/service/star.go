@@ -22,10 +22,26 @@ type StarService struct {
 
 	// In-memory 5-minute repo metadata cache.
 	metaCache *metaCache
+
+	// baseCtx parents the fire-and-forget metadata refresh goroutines so
+	// they stop promptly on shutdown instead of outliving the process's
+	// graceful-exit window. Defaults to context.Background() for tests.
+	baseCtx context.Context
 }
 
 func NewStar(db *pgxpool.Pool, gh *github.Client, auth *AuthService) *StarService {
-	return &StarService{db: db, gh: gh, auth: auth, metaCache: newMetaCache(5 * time.Minute)}
+	return &StarService{
+		db: db, gh: gh, auth: auth,
+		metaCache: newMetaCache(5 * time.Minute),
+		baseCtx:   context.Background(),
+	}
+}
+
+// WithBaseContext sets the parent for background refresh goroutines.
+// Call once at startup with the process's signal-bound context.
+func (s *StarService) WithBaseContext(ctx context.Context) *StarService {
+	s.baseCtx = ctx
+	return s
 }
 
 type StarFilter struct {
@@ -324,7 +340,12 @@ func (s *StarService) Get(ctx context.Context, userID, starID int64) (*model.Sta
 
 	// On-demand refresh: if metadata > 5 min old, fetch in the background.
 	if st.Repo.MetadataSyncedAt == nil || time.Since(*st.Repo.MetadataSyncedAt) > 5*time.Minute {
-		go s.refreshMetadata(context.Background(), userID, st.Repo.FullName)
+		go func() {
+			// Bounded: dies with the process ctx or after 30s, whichever first.
+			rctx, cancel := context.WithTimeout(s.baseCtx, 30*time.Second)
+			defer cancel()
+			s.refreshMetadata(rctx, userID, st.Repo.FullName)
+		}()
 	}
 
 	return &st, nil

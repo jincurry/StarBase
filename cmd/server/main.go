@@ -50,7 +50,7 @@ func main() {
 	auth := service.NewAuth(cfg, pool, gh, aead)
 	event := service.NewEvent(pool)
 	syncSvc := service.NewSync(pool, gh, auth).WithEvents(event)
-	star := service.NewStar(pool, gh, auth)
+	star := service.NewStar(pool, gh, auth).WithBaseContext(ctx)
 	tag := service.NewTag(pool)
 	review := service.NewReview(pool, star)
 	ai := service.NewAI(pool, gh, auth, cfg.AnthropicAPIKey, cfg.AnthropicModel)

@@ -410,16 +410,24 @@ func (s *SyncService) runReconcile(ctx context.Context, job *model.SyncJob, toke
 
 // --- helpers -----------------------------------------------------------------
 
-// upsertStar makes sure the repo row exists, then upserts the join row. It
-// never overwrites status / note / tags for existing rows.
+// upsertStar makes sure the repo row exists, then upserts the join row,
+// both inside one transaction so a mid-flight failure never leaves an
+// orphaned repos row. It never overwrites status / note / tags for
+// existing rows.
 func (s *SyncService) upsertStar(ctx context.Context, userID int64, e github.StarredEntry, fallbackStatus model.Status) error {
 	repo := e.Repo
 	license := ""
 	if repo.License != nil {
 		license = repo.License.SPDXID
 	}
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	var repoID int64
-	err := s.db.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 		INSERT INTO repos (
 		  github_repo_id, owner, name, full_name, description, html_url, homepage,
 		  language, topics, stargazers_count, forks_count, open_issues_count, license,
@@ -455,7 +463,7 @@ func (s *SyncService) upsertStar(ctx context.Context, userID int64, e github.Sta
 
 	// Insert join row only if absent; we only update is_starred / starred_at
 	// (never status / note / tags), so user-curated data is preserved.
-	_, err = s.db.Exec(ctx, `
+	_, err = tx.Exec(ctx, `
 		INSERT INTO user_starred_repos (user_id, repo_id, starred_at, status)
 		VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_id, repo_id) DO UPDATE
@@ -464,5 +472,8 @@ func (s *SyncService) upsertStar(ctx context.Context, userID int64, e github.Sta
 		       unstarred_at = NULL,
 		       updated_at = now()
 	`, userID, repoID, e.StarredAt, fallbackStatus)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }

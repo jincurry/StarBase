@@ -16,6 +16,7 @@ export const en = {
   "smart.untagged": "Untagged",
   "smart.watching": "Watching",
   "smart.with_notes": "Has notes",
+  "smart.recently_viewed": "Recently viewed",
   "smart.stale": "Stale > 14d",
   "smart.kept": "Kept",
 
@@ -354,6 +355,7 @@ export const zh: Record<TKey, string> = {
   "smart.untagged": "未打标签",
   "smart.watching": "关注中",
   "smart.with_notes": "有笔记",
+  "smart.recently_viewed": "最近查看",
   "smart.stale": "超过 14 天",
   "smart.kept": "已留存",
 

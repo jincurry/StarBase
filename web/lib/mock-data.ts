@@ -406,6 +406,13 @@ export const SMART_INBOXES: SmartInbox[] = [
   { id: "watching", label: "Watching", icon: "eye", filter: (s) => !!s.watching },
   { id: "with-notes", label: "Has notes", icon: "note", filter: (s) => !!s.note },
   {
+    id: "recently-viewed",
+    label: "Recently viewed",
+    icon: "eye",
+    filter: (s) =>
+      !!s.lastViewedAt && (Date.now() - new Date(s.lastViewedAt).getTime()) / 86400000 < 7,
+  },
+  {
     id: "stale",
     label: "Stale > 14d",
     icon: "timer",
