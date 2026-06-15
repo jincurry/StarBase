@@ -40,11 +40,11 @@ const dangerBtn: CSSProperties = {
   fontSize: 12, fontWeight: 500, borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
 };
 
-function SettingsBlock({ title, subtitle, children, tone }: {
-  title: string; subtitle?: string; children: ReactNode; tone?: "danger";
+function SettingsBlock({ id, title, subtitle, children, tone }: {
+  id?: string; title: string; subtitle?: string; children: ReactNode; tone?: "danger";
 }) {
   return (
-    <div style={{ marginBottom: 28 }}>
+    <div id={id} style={{ marginBottom: 28, scrollMarginTop: 24 }}>
       <h3 style={{
         fontSize: 12, fontWeight: 600, margin: "0 0 4px",
         letterSpacing: "0.04em", textTransform: "uppercase",
@@ -94,8 +94,17 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Topbar title={t("settings.title")} />
-      <div style={{ overflow: "auto", flex: 1, padding: "24px 32px", maxWidth: 720 }}>
-        <SettingsBlock title={t("settings.appearance")}>
+      <div style={{ overflow: "auto", flex: 1 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 720px) 260px",
+        gap: 32,
+        padding: "24px 32px 40px",
+        maxWidth: 1080,
+        margin: "0 auto",
+      }}>
+        <div style={{ minWidth: 0 }}>
+        <SettingsBlock id="settings-appearance" title={t("settings.appearance")}>
           <Row label={t("settings.theme")} hint={t("settings.theme.hint")}>
             <div style={{ display: "flex", gap: 4 }}>
               {[{ v: "light", l: t("settings.theme.light") }, { v: "dark", l: t("settings.theme.dark") }].map((o) => (
@@ -127,7 +136,7 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
           </Row>
         </SettingsBlock>
 
-        <SettingsBlock title={t("settings.account")}>
+        <SettingsBlock id="settings-account" title={t("settings.account")}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
               width: 44, height: 44, borderRadius: "50%",
@@ -146,7 +155,7 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
           </div>
         </SettingsBlock>
 
-        <SettingsBlock title={t("settings.sync")}
+        <SettingsBlock id="settings-sync" title={t("settings.sync")}
           subtitle={`${t("settings.sync.subtitle.last_incremental")} ${fmtRelative(user.lastSync)} · ${t("settings.sync.subtitle.last_reconcile")} ${fmtRelative(user.lastReconcile)}`}>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={primaryBtn} onClick={onSync} disabled={syncing}>
@@ -182,7 +191,7 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
           </div>
         </SettingsBlock>
 
-        <SettingsBlock title={t("settings.inbox")} subtitle={t("settings.inbox.subtitle")}>
+        <SettingsBlock id="settings-inbox" title={t("settings.inbox")} subtitle={t("settings.inbox.subtitle")}>
           <Row label={t("settings.inbox.stale_threshold")} hint={t("settings.inbox.stale_hint")}>
             <select
               style={selectStyle}
@@ -207,7 +216,7 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
 
         <TagsBlock />
 
-        <SettingsBlock title={t("settings.danger")} tone="danger">
+        <SettingsBlock id="settings-danger" title={t("settings.danger")} tone="danger">
           <Row label={t("settings.danger.disconnect")} hint={t("settings.danger.disconnect_hint")}>
             <button style={dangerBtn} onClick={() => setConfirmDisconnectOpen(true)}>{t("settings.danger.disconnect_action")}</button>
           </Row>
@@ -215,6 +224,16 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
             <button style={dangerBtn} onClick={() => setConfirmDeleteOpen(true)}>{t("settings.danger.delete_action")}</button>
           </Row>
         </SettingsBlock>
+        </div>
+
+        <SettingsRail
+          user={user}
+          rate={rate}
+          ratePct={ratePct}
+          stale={stale}
+          autoArchive={autoArchive}
+        />
+      </div>
       </div>
 
       {confirmDisconnectOpen && (
@@ -250,6 +269,105 @@ export function SettingsScreen({ user, onSync, syncing, theme, onToggleTheme }: 
   );
 }
 
+function SettingsRail({ user, rate, ratePct, stale, autoArchive }: {
+  user: User;
+  rate: { limit: number; remaining: number; reset_at: string } | undefined;
+  ratePct: number | null;
+  stale: number;
+  autoArchive: boolean;
+}) {
+  const t = useT();
+  const sections = [
+    { id: "settings-appearance", label: t("settings.appearance") },
+    { id: "settings-account", label: t("settings.account") },
+    { id: "settings-sync", label: t("settings.sync") },
+    { id: "settings-inbox", label: t("settings.inbox") },
+    { id: "settings-tags", label: t("settings.tags") },
+    { id: "settings-danger", label: t("settings.danger") },
+  ];
+  return (
+    <aside style={{
+      position: "sticky", top: 24, alignSelf: "start",
+      display: "flex", flexDirection: "column", gap: 16,
+    }}>
+      <nav style={{
+        background: "var(--surface-0)", border: "1px solid var(--border)",
+        borderRadius: 10, padding: "10px 8px",
+      }}>
+        <div style={{
+          padding: "4px 10px 6px", fontSize: 10.5, fontWeight: 600,
+          color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase",
+        }}>{t("settings.toc")}</div>
+        {sections.map((s) => (
+          <a key={s.id} href={`#${s.id}`} onClick={(e) => {
+            e.preventDefault();
+            document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }} style={{
+            display: "block", padding: "5px 10px", fontSize: 12.5,
+            color: "var(--ink-1)", textDecoration: "none", borderRadius: 6,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "var(--surface-1)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
+          >{s.label}</a>
+        ))}
+      </nav>
+
+      <div style={{
+        background: "var(--surface-0)", border: "1px solid var(--border)",
+        borderRadius: 10, padding: 14,
+      }}>
+        <div style={{
+          fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)",
+          letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10,
+        }}>{t("settings.summary")}</div>
+
+        <RailRow label={t("settings.summary.signed_in")} value={user.username} mono />
+        <RailRow label={t("settings.summary.last_sync")} value={fmtRelative(user.lastSync)} />
+        <RailRow label={t("settings.summary.stale_after")} value={`${stale}d`} />
+        <RailRow label={t("settings.summary.auto_archive")} value={autoArchive ? t("common.on") : t("common.off")} />
+
+        {rate && rate.limit > 0 && (
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border-soft)" }}>
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              fontSize: 11.5, color: "var(--ink-2)", marginBottom: 6,
+            }}>
+              <span>{t("settings.sync.rate_limit")}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                {rate.remaining.toLocaleString()}/{rate.limit.toLocaleString()}
+              </span>
+            </div>
+            <div style={{ height: 4, background: "var(--surface-2)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ width: `${ratePct ?? 0}%`, height: "100%", background: "var(--accent)" }} />
+            </div>
+            {rate.reset_at && (
+              <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6 }}>
+                {t("settings.sync.rate_resets")} {fmtRelative(rate.reset_at)}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function RailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", gap: 8,
+      fontSize: 11.5, padding: "4px 0", color: "var(--ink-2)",
+    }}>
+      <span style={{ color: "var(--ink-3)" }}>{label}</span>
+      <span style={{
+        color: "var(--ink-1)", maxWidth: "60%",
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        fontFamily: mono ? "'JetBrains Mono', monospace" : "inherit",
+      }}>{value}</span>
+    </div>
+  );
+}
+
 function TagsBlock() {
   const { tags } = useTagsCtx();
   const updateTag = useUpdateTag();
@@ -260,7 +378,7 @@ function TagsBlock() {
 
   if (tags.length === 0) {
     return (
-      <SettingsBlock title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
+      <SettingsBlock id="settings-tags" title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
         <div style={{ fontSize: 12.5, color: "var(--ink-3)", padding: 6 }}>
           {t("settings.tags.empty")}
         </div>
@@ -268,7 +386,7 @@ function TagsBlock() {
     );
   }
   return (
-    <SettingsBlock title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
+    <SettingsBlock id="settings-tags" title={t("settings.tags")} subtitle={t("settings.tags.subtitle")}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {tags.map((tag) => (
           <div key={tag.id} style={{

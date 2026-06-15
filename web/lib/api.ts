@@ -176,6 +176,11 @@ export const api = {
     http<ApiStar>(`/api/stars/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   view: (id: number) => http<void>(`/api/stars/${id}/view`, { method: "POST" }),
   readme: (id: number) => http<{ content: string }>(`/api/stars/${id}/readme`),
+  activity: (id: number) =>
+    http<{
+      commits: { sha: string; url: string; author: string; message: string; date: string }[];
+      releases: { tag_name: string; name: string; url: string; published_at: string }[];
+    }>(`/api/stars/${id}/activity`),
 
   // V1.3 share
   share: (id: number) => http<{ token: string; url: string }>(`/api/stars/${id}/share`, { method: "POST" }),

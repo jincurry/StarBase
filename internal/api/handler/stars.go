@@ -130,6 +130,21 @@ func (h *StarsHandler) Readme(c *gin.Context) {
 	c.JSON(200, gin.H{"content": md})
 }
 
+func (h *StarsHandler) Activity(c *gin.Context) {
+	u := c.MustGet(middleware.CtxUserKey).(*model.User)
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		respond(c, apperror.BadRequest("Invalid star id"))
+		return
+	}
+	act, err := h.star.Activity(c.Request.Context(), u.ID, id)
+	if err != nil {
+		respond(c, apperror.New(502, "upstream_failed", "Couldn't fetch activity from GitHub", ""))
+		return
+	}
+	c.JSON(200, act)
+}
+
 func (h *StarsHandler) Stats(c *gin.Context) {
 	u := c.MustGet(middleware.CtxUserKey).(*model.User)
 	stats, err := h.star.Stats(c.Request.Context(), u.ID)

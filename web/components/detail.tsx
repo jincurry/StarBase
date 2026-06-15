@@ -7,6 +7,7 @@ import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
 import {
+  useActivity,
   useAIStatus,
   useAttachTag,
   useCreateTag,
@@ -74,7 +75,7 @@ export function DetailPanel({
         )}
         {tab === "readme" && <ReadmeTab star={star} githubUrl={githubUrl} authed={!!authed} />}
         {tab === "notes" && <NotesTab star={star} onSaveNote={onSaveNote} />}
-        {tab === "activity" && <ActivityTab star={star} githubUrl={githubUrl} />}
+        {tab === "activity" && <ActivityTab star={star} githubUrl={githubUrl} authed={!!authed} />}
       </div>
     </div>
   );
@@ -812,16 +813,73 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
   );
 }
 
-function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
-  const { commits, releases } = getActivity(star);
+function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: string; authed: boolean }) {
+  // Live commits + releases when signed in; mock blocks for the demo
+  // preview so the tab still has something to look at when un-authed.
+  const live = useActivity(star.id, authed);
+  const mock = getActivity(star);
   const { tagById } = useTagsCtx();
   const t = useT();
+
+  const liveCommits = live.data?.commits ?? [];
+  const liveReleases = live.data?.releases ?? [];
+  const useLiveCommits = authed && liveCommits.length > 0;
+  const useLiveReleases = authed && liveReleases.length > 0;
+
+  const releases = useLiveReleases
+    ? liveReleases.map((r) => ({
+        tag: r.tag_name,
+        url: r.url || `${githubUrl}/releases/tag/${r.tag_name}`,
+        highlights: r.name || r.tag_name,
+        when: r.published_at,
+      }))
+    : mock.releases.map((r) => ({
+        tag: r.tag,
+        url: `${githubUrl}/releases/tag/${r.tag}`,
+        highlights: r.highlights,
+        when: r.when,
+      }));
+
+  const commits = useLiveCommits
+    ? liveCommits.map((c) => ({
+        sha: c.sha,
+        url: c.url || `${githubUrl}/commit/${c.sha}`,
+        msg: c.message,
+        author: c.author,
+        when: c.date,
+      }))
+    : mock.commits.map((c) => ({
+        sha: c.sha,
+        url: `${githubUrl}/commit/${c.sha}`,
+        msg: c.msg,
+        author: c.author,
+        when: c.when,
+      }));
+
+  const sourceTag = authed && (live.isLoading || live.isFetching) && !live.data
+    ? t("common.loading")
+    : authed && live.data
+      ? t("detail.readme.live")
+      : t("detail.readme.preview");
+
   return (
     <div style={{ padding: "14px 18px 22px" }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6, marginBottom: 12,
+        fontSize: 11, color: "var(--ink-3)", fontFamily: "'JetBrains Mono', monospace",
+      }}>
+        <span>· {sourceTag}</span>
+        {authed && live.isError && <span style={{ color: "oklch(50% 0.16 25)" }}>· upstream error</span>}
+      </div>
       <SectionLabel>{t("detail.section.recent_releases")}</SectionLabel>
       <div style={{ marginBottom: 22, display: "flex", flexDirection: "column", gap: 6 }}>
+        {releases.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
+            {t("detail.activity.no_releases") /* falls back to key if not in dict */}
+          </div>
+        )}
         {releases.map((r, i) => (
-          <a key={i} href={`${githubUrl}/releases/tag/${r.tag}`} target="_blank" rel="noreferrer" style={{
+          <a key={i} href={r.url} target="_blank" rel="noreferrer" style={{
             display: "flex", alignItems: "flex-start", gap: 10,
             padding: "10px 12px", borderRadius: 8, textDecoration: "none",
             background: i === 0 ? "var(--accent-soft)" : "var(--surface-1)",
@@ -847,8 +905,13 @@ function ActivityTab({ star, githubUrl }: { star: Star; githubUrl: string }) {
         background: "var(--surface-0)", border: "1px solid var(--border)", borderRadius: 8,
         overflow: "hidden", marginBottom: 22,
       }}>
+        {commits.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--ink-3)", padding: "12px" }}>
+            {t("detail.activity.no_commits")}
+          </div>
+        )}
         {commits.map((c, i) => (
-          <a key={c.sha} href={`${githubUrl}/commit/${c.sha}`} target="_blank" rel="noreferrer" style={{
+          <a key={c.sha || i} href={c.url} target="_blank" rel="noreferrer" style={{
             display: "grid", gridTemplateColumns: "auto 1fr auto",
             alignItems: "center", gap: 10,
             padding: "8px 12px", textDecoration: "none",

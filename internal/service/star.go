@@ -573,6 +573,83 @@ func (s *StarService) Readme(ctx context.Context, userID, starID int64) (string,
 	return md, nil
 }
 
+// Activity is the recent commits + releases view shown in the detail panel.
+type Activity struct {
+	Commits  []ActivityCommit  `json:"commits"`
+	Releases []ActivityRelease `json:"releases"`
+}
+
+type ActivityCommit struct {
+	SHA     string    `json:"sha"`
+	URL     string    `json:"url"`
+	Author  string    `json:"author"`
+	Message string    `json:"message"`
+	Date    time.Time `json:"date"`
+}
+
+type ActivityRelease struct {
+	TagName     string    `json:"tag_name"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	PublishedAt time.Time `json:"published_at"`
+}
+
+// Activity fetches recent commits + releases for a starred repo.
+// Partial failures degrade gracefully: if commits fail but releases succeed
+// (or vice versa), the caller still gets what's available.
+func (s *StarService) Activity(ctx context.Context, userID, starID int64) (*Activity, error) {
+	var fullName string
+	err := s.db.QueryRow(ctx, `
+		SELECT r.full_name
+		FROM user_starred_repos usr JOIN repos r ON r.id = usr.repo_id
+		WHERE usr.id=$1 AND usr.user_id=$2
+	`, starID, userID).Scan(&fullName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	token, err := s.auth.AccessTokenFor(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := &Activity{Commits: []ActivityCommit{}, Releases: []ActivityRelease{}}
+	if commits, err := s.gh.ListCommits(ctx, token, fullName, 5); err == nil {
+		for _, c := range commits {
+			msg := c.Commit.Message
+			// First line of the commit message only.
+			if i := strings.IndexByte(msg, '\n'); i >= 0 {
+				msg = msg[:i]
+			}
+			author := ""
+			if c.Author != nil {
+				author = c.Author.Login
+			}
+			if author == "" {
+				author = c.Commit.Author.Name
+			}
+			sha := c.SHA
+			if len(sha) > 7 {
+				sha = sha[:7]
+			}
+			out.Commits = append(out.Commits, ActivityCommit{
+				SHA: sha, URL: c.HTMLURL, Author: author,
+				Message: msg, Date: c.Commit.Author.Date,
+			})
+		}
+	}
+	if releases, err := s.gh.ListReleases(ctx, token, fullName, 5); err == nil {
+		for _, r := range releases {
+			out.Releases = append(out.Releases, ActivityRelease{
+				TagName: r.TagName, Name: r.Name, URL: r.HTMLURL, PublishedAt: r.PublishedAt,
+			})
+		}
+	}
+	return out, nil
+}
+
 // refreshMetadata pulls fresh repo info from GitHub and updates the repos row.
 func (s *StarService) refreshMetadata(ctx context.Context, userID int64, fullName string) {
 	if !s.metaCache.markIfFresh(fullName) {

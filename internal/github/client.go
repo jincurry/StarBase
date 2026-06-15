@@ -271,6 +271,7 @@ func (c *Client) GetRepo(ctx context.Context, token, fullName string) (*Repo, er
 type Release struct {
 	TagName     string    `json:"tag_name"`
 	Name        string    `json:"name"`
+	HTMLURL     string    `json:"html_url"`
 	PublishedAt time.Time `json:"published_at"`
 }
 
@@ -287,6 +288,60 @@ func (c *Client) GetLatestRelease(ctx context.Context, token, fullName string) (
 		return nil, err
 	}
 	return &r, nil
+}
+
+// ListReleases returns the most recent N releases for a repo (newest first).
+func (c *Client) ListReleases(ctx context.Context, token, fullName string, limit int) ([]Release, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	params := url.Values{}
+	params.Set("per_page", strconv.Itoa(limit))
+	res, err := c.do(ctx, token, http.MethodGet, "/repos/"+fullName+"/releases", params)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	var rs []Release
+	if err := json.NewDecoder(res.Body).Decode(&rs); err != nil {
+		return nil, err
+	}
+	return rs, nil
+}
+
+// Commit is the subset of a commit payload we display.
+type Commit struct {
+	SHA     string `json:"sha"`
+	HTMLURL string `json:"html_url"`
+	Commit  struct {
+		Message string `json:"message"`
+		Author  struct {
+			Name string    `json:"name"`
+			Date time.Time `json:"date"`
+		} `json:"author"`
+	} `json:"commit"`
+	Author *struct {
+		Login string `json:"login"`
+	} `json:"author"`
+}
+
+// ListCommits returns the most recent N commits on the default branch (newest first).
+func (c *Client) ListCommits(ctx context.Context, token, fullName string, limit int) ([]Commit, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+	params := url.Values{}
+	params.Set("per_page", strconv.Itoa(limit))
+	res, err := c.do(ctx, token, http.MethodGet, "/repos/"+fullName+"/commits", params)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	var cs []Commit
+	if err := json.NewDecoder(res.Body).Decode(&cs); err != nil {
+		return nil, err
+	}
+	return cs, nil
 }
 
 // GetReadme fetches the rendered README for a repo. GitHub returns the

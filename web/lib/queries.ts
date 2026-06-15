@@ -218,6 +218,17 @@ export function useReadme(starId: number | undefined, enabled: boolean) {
   });
 }
 
+export function useActivity(starId: number | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["activity", starId],
+    queryFn: () => api.activity(starId!),
+    enabled: enabled && !!starId,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
 export function useReview() {
   const authed = useAuthed();
   return useQuery({
