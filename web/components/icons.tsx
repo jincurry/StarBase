@@ -38,6 +38,7 @@ const PATHS = {
   arch: "M21 8v13H3V8 M1 3h22v5H1z M10 12h4",
   log: "M3 5h18 M3 12h18 M3 19h18",
   user: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+  help: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01",
 } as const;
 
 export function Icon({ name, size = 14, stroke = 1.6, style }: IconProps) {

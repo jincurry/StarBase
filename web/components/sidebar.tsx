@@ -161,6 +161,9 @@ export function Sidebar({
           {theme === "dark" ? <SunIcon size={13} /> : <MoonIcon size={13} />}
         </button>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setRoute("help")} title={t("help.title")} style={miniBtn}>
+          <Icon name="help" size={13} />
+        </button>
         <button onClick={() => setRoute("settings")} title={t("settings.title")} style={miniBtn}>
           <Icon name="settings" size={13} />
         </button>

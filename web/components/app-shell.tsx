@@ -22,11 +22,12 @@ import { InboxScreen } from "./screens/inbox-screen";
 import { StarsScreen } from "./screens/stars-screen";
 import { ReviewScreen } from "./screens/review-screen";
 import { SettingsScreen } from "./screens/settings-screen";
+import { HelpScreen } from "./screens/help-screen";
 import { CommandPalette } from "./command-palette";
 import { ExportDialog, ShortcutsModal, WeeklyDigest } from "./dialogs";
 import { TokenInvalidBanner } from "./banners";
 
-const ROUTES = ["inbox", "stars", "review", "settings"] as const;
+const ROUTES = ["inbox", "stars", "review", "settings", "help"] as const;
 type Route = (typeof ROUTES)[number];
 
 export function AppShell({ initialRoute }: { initialRoute: Route }) {
@@ -234,6 +235,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
         if (e.key === "i") { setRoute("inbox"); setSmartInbox(null); buffer = ""; return; }
         if (e.key === "s") { setRoute("stars"); setSmartInbox(null); buffer = ""; return; }
         if (e.key === "r") { setRoute("review"); setSmartInbox(null); buffer = ""; return; }
+        if (e.key === "h") { setRoute("help"); setSmartInbox(null); buffer = ""; return; }
         buffer = "";
       }
       if (e.key === "g") {
@@ -355,6 +357,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
               theme={theme} onToggleTheme={toggleTheme}
             />
           )}
+          {route === "help" && <HelpScreen />}
         </div>
 
         {detailOpen && (route === "inbox" || route === "stars") && (
