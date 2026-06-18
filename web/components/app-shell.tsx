@@ -30,6 +30,12 @@ import { TokenInvalidBanner } from "./banners";
 const ROUTES = ["inbox", "stars", "review", "settings", "help"] as const;
 type Route = (typeof ROUTES)[number];
 
+// Stable identifier for the current week (weeks since the Unix epoch). Used
+// to scope the digest-banner dismissal so it auto-resurfaces next week.
+function digestWeekKey(): string {
+  return String(Math.floor(Date.now() / (7 * 86_400_000)));
+}
+
 export function AppShell({ initialRoute }: { initialRoute: Route }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -95,7 +101,18 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
   const [showPalette, setShowPalette] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showDigest, setShowDigest] = useState(false);
-  const [digestVisible, setDigestVisible] = useState(true);
+  // Digest banner dismissal persists across navigation + reloads. We key the
+  // dismissal by week so next week's digest still surfaces — without this,
+  // the banner reappears every time Next.js mounts a fresh AppShell (which
+  // happens on every sidebar click, since each route is its own page).
+  const [digestVisible, setDigestVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("starbase-digest-dismissed") !== digestWeekKey();
+  });
+  const dismissDigest = useCallback(() => {
+    setDigestVisible(false);
+    try { localStorage.setItem("starbase-digest-dismissed", digestWeekKey()); } catch {}
+  }, []);
   const [theme, setTheme] = useState<"light" | "dark">(
     typeof window !== "undefined" && (localStorage.getItem("starbase-theme") as any) === "dark" ? "dark" : "light"
   );
@@ -328,7 +345,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
               onOpenPalette={() => setShowPalette(true)}
               onOpenDigest={() => setShowDigest(true)}
               digestVisible={digestVisible}
-              onDismissDigest={() => setDigestVisible(false)}
+              onDismissDigest={dismissDigest}
             />
           )}
           {route === "stars" && (
