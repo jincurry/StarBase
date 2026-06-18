@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Star } from "@/lib/types";
-import { fmtNumber, fmtRelative, getActivity, getReadme, getStarHistory } from "@/lib/mock-data";
+import { fmtNumber, fmtRelative, getActivity, getReadme } from "@/lib/mock-data";
 import { Icon, GithubMark } from "./icons";
 import { Kbd, LangDot, STATUSES, SectionLabel, TAG_COLOR, StatusPill, TagChip } from "./primitives";
 import { useTagsCtx } from "./providers";
@@ -68,7 +68,7 @@ export function DetailPanel({
       <DetailTabs tab={tab} setTab={setTab} hasNote={!!star.note} />
       <div style={{ overflow: "auto", flex: 1 }}>
         {tab === "overview" && (
-          <OverviewTab star={star} allStars={allStars}
+          <OverviewTab star={star} allStars={allStars} authed={!!authed}
             onChangeStatus={onChangeStatus}
             onAddTag={onAddTag} onRemoveTag={onRemoveTag}
             onOpenStar={onOpenStar} />
@@ -227,8 +227,8 @@ function DetailTabs({ tab, setTab, hasNote }: {
   );
 }
 
-function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, onOpenStar }: {
-  star: Star; allStars: Star[];
+function OverviewTab({ star, allStars, authed, onChangeStatus, onAddTag, onRemoveTag, onOpenStar }: {
+  star: Star; allStars: Star[]; authed: boolean;
   onChangeStatus: (id: number, status: Star["status"]) => void;
   onAddTag: (id: number, tagId: number) => void;
   onRemoveTag: (id: number, tagId: number) => void;
@@ -263,20 +263,31 @@ function OverviewTab({ star, allStars, onChangeStatus, onAddTag, onRemoveTag, on
       // toast already shown by mutation hook
     }
   };
-  const history = getStarHistory(star);
+  // Real weekly commit counts from GitHub (52 weeks). Shared cache with the
+  // Activity tab. We only render the chart when there's genuine data — no
+  // fabricated history.
+  const activity = useActivity(star.id, authed);
+  const weeks = activity.data?.commit_activity ?? [];
+  const hasActivity = authed && weeks.length >= 2 && weeks.some((w) => w > 0);
+  const last4 = weeks.slice(-4).reduce((a, b) => a + b, 0);
+  const lastYear = weeks.reduce((a, b) => a + b, 0);
 
   return (
     <div style={{ padding: "14px 18px 22px" }}>
-      <SectionLabel>{t("detail.section.star_growth")}</SectionLabel>
-      <div style={{ marginBottom: 18, padding: "10px 12px", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 8 }}>
-        <Sparkline values={history} />
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--ink-3)" }}>
-          <span>+{fmtNumber(Math.round(star.stars * 0.07))} this month</span>
-          <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--ink-1)", fontWeight: 600, fontSize: 13 }}>
-            {fmtNumber(star.stars)} ★
-          </span>
-        </div>
-      </div>
+      {hasActivity && (
+        <>
+          <SectionLabel>{t("detail.section.commit_activity")}</SectionLabel>
+          <div style={{ marginBottom: 18, padding: "10px 12px", background: "var(--surface-1)", border: "1px solid var(--border)", borderRadius: 8 }}>
+            <Sparkline values={weeks} />
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginTop: 4, fontSize: 11, color: "var(--ink-3)" }}>
+              <span>{last4} {t("detail.commit_activity.last_4_weeks")}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums", color: "var(--ink-1)", fontWeight: 600, fontSize: 13 }}>
+                {fmtNumber(lastYear)} {t("detail.commit_activity.commits_year")}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
 
       <SectionLabel>{t("detail.section.status")}</SectionLabel>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
@@ -628,12 +639,18 @@ function Sparkline({ values, w = 360, h = 40 }: { values: number[]; w?: number; 
 }
 
 function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string; authed: boolean }) {
-  // Try the live README from GitHub when signed in; otherwise stick
-  // with the mock blocks (no point firing requests that'll 401).
+  // Signed-in users always get the real README (or an honest loading/empty
+  // state). The mock blocks are reserved for the un-authed demo so we never
+  // present fabricated content as if it were the repo's own.
   const live = useReadme(star.id, authed);
   const liveContent = live.data?.content?.trim();
-  const mock = getReadme(star);
   const t = useT();
+
+  const sourceLabel = authed
+    ? live.isLoading
+      ? t("common.loading")
+      : t("detail.readme.live")
+    : t("detail.readme.preview");
 
   return (
     <div>
@@ -646,9 +663,7 @@ function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string;
         fontSize: 11.5, color: "var(--ink-3)",
       }}>
         <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{t("detail.readme.label")}</span>
-        <span style={{ color: "var(--ink-3)" }}>
-          · {liveContent ? t("detail.readme.live") : live.isLoading ? t("common.loading") : t("detail.readme.preview")}
-        </span>
+        <span style={{ color: "var(--ink-3)" }}>· {sourceLabel}</span>
         <div style={{ flex: 1 }} />
         <a href={`${githubUrl}#readme`} target="_blank" rel="noreferrer" style={{
           display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px",
@@ -657,19 +672,63 @@ function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string;
         }}>{t("detail.readme.view_on_github")} <Icon name="extLink" size={10} /></a>
       </div>
       <div style={{ padding: "18px 22px 32px", maxWidth: 760 }}>
-        {liveContent ? (
-          <Markdown source={liveContent} />
+        {authed ? (
+          live.isLoading ? (
+            <ReadmeSkeleton />
+          ) : liveContent ? (
+            <Markdown source={liveContent} />
+          ) : live.isError ? (
+            <EmptyTabState icon="bug" text={t("detail.readme.error")} />
+          ) : (
+            <EmptyTabState icon="note" text={t("detail.readme.none")} />
+          )
         ) : (
-          <>
-            {mock.badges?.length > 0 && (
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
-                {mock.badges.map((b, i) => <Badge key={i}>{b}</Badge>)}
-              </div>
-            )}
-            {mock.body.map((block, i) => <MdBlock key={i} block={block} />)}
-          </>
+          <ReadmeMock star={star} />
         )}
       </div>
+    </div>
+  );
+}
+
+function ReadmeMock({ star }: { star: Star }) {
+  const mock = getReadme(star);
+  return (
+    <>
+      {mock.badges?.length > 0 && (
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 14 }}>
+          {mock.badges.map((b, i) => <Badge key={i}>{b}</Badge>)}
+        </div>
+      )}
+      {mock.body.map((block, i) => <MdBlock key={i} block={block} />)}
+    </>
+  );
+}
+
+function ReadmeSkeleton() {
+  const widths = ["40%", "92%", "78%", "85%", "30%", "70%", "88%"];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {widths.map((w, i) => (
+        <div key={i} style={{
+          height: i === 0 ? 18 : 11, width: w, borderRadius: 4,
+          background: "var(--surface-2)",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function EmptyTabState({ icon, text }: { icon: "bug" | "note"; text: string }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      gap: 10, padding: "40px 20px", textAlign: "center", color: "var(--ink-3)",
+    }}>
+      <div style={{
+        width: 38, height: 38, borderRadius: 9, background: "var(--surface-2)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}><Icon name={icon} size={17} /></div>
+      <div style={{ fontSize: 12.5, maxWidth: 280, lineHeight: 1.5 }}>{text}</div>
     </div>
   );
 }
@@ -814,41 +873,39 @@ function NotesTab({ star, onSaveNote }: { star: Star; onSaveNote: (id: number, n
 }
 
 function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: string; authed: boolean }) {
-  // Live commits + releases when signed in; mock blocks for the demo
-  // preview so the tab still has something to look at when un-authed.
+  // Signed-in users see only real commits + releases from GitHub (with an
+  // honest loading/empty/error state). Mock blocks are reserved for the
+  // un-authed demo so two different repos never show identical "activity".
   const live = useActivity(star.id, authed);
-  const mock = getActivity(star);
   const { tagById } = useTagsCtx();
   const t = useT();
 
-  const liveCommits = live.data?.commits ?? [];
-  const liveReleases = live.data?.releases ?? [];
-  const useLiveCommits = authed && liveCommits.length > 0;
-  const useLiveReleases = authed && liveReleases.length > 0;
+  const loading = authed && live.isLoading;
+  const mock = authed ? null : getActivity(star);
 
-  const releases = useLiveReleases
-    ? liveReleases.map((r) => ({
+  const releases = authed
+    ? (live.data?.releases ?? []).map((r) => ({
         tag: r.tag_name,
         url: r.url || `${githubUrl}/releases/tag/${r.tag_name}`,
         highlights: r.name || r.tag_name,
         when: r.published_at,
       }))
-    : mock.releases.map((r) => ({
+    : mock!.releases.map((r) => ({
         tag: r.tag,
         url: `${githubUrl}/releases/tag/${r.tag}`,
         highlights: r.highlights,
         when: r.when,
       }));
 
-  const commits = useLiveCommits
-    ? liveCommits.map((c) => ({
+  const commits = authed
+    ? (live.data?.commits ?? []).map((c) => ({
         sha: c.sha,
         url: c.url || `${githubUrl}/commit/${c.sha}`,
         msg: c.message,
         author: c.author,
         when: c.date,
       }))
-    : mock.commits.map((c) => ({
+    : mock!.commits.map((c) => ({
         sha: c.sha,
         url: `${githubUrl}/commit/${c.sha}`,
         msg: c.msg,
@@ -856,9 +913,9 @@ function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: strin
         when: c.when,
       }));
 
-  const sourceTag = authed && (live.isLoading || live.isFetching) && !live.data
+  const sourceTag = loading
     ? t("common.loading")
-    : authed && live.data
+    : authed
       ? t("detail.readme.live")
       : t("detail.readme.preview");
 
@@ -869,13 +926,14 @@ function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: strin
         fontSize: 11, color: "var(--ink-3)", fontFamily: "'JetBrains Mono', monospace",
       }}>
         <span>· {sourceTag}</span>
-        {authed && live.isError && <span style={{ color: "oklch(50% 0.16 25)" }}>· upstream error</span>}
+        {authed && live.isError && <span style={{ color: "oklch(50% 0.16 25)" }}>· {t("detail.activity.error")}</span>}
       </div>
       <SectionLabel>{t("detail.section.recent_releases")}</SectionLabel>
       <div style={{ marginBottom: 22, display: "flex", flexDirection: "column", gap: 6 }}>
-        {releases.length === 0 && (
+        {loading && <ActivitySkeleton rows={2} />}
+        {!loading && releases.length === 0 && (
           <div style={{ fontSize: 12, color: "var(--ink-3)", padding: "8px 0" }}>
-            {t("detail.activity.no_releases") /* falls back to key if not in dict */}
+            {live.isError ? t("detail.activity.error_releases") : t("detail.activity.no_releases")}
           </div>
         )}
         {releases.map((r, i) => (
@@ -905,9 +963,10 @@ function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: strin
         background: "var(--surface-0)", border: "1px solid var(--border)", borderRadius: 8,
         overflow: "hidden", marginBottom: 22,
       }}>
-        {commits.length === 0 && (
+        {loading && <div style={{ padding: 12 }}><ActivitySkeleton rows={4} /></div>}
+        {!loading && commits.length === 0 && (
           <div style={{ fontSize: 12, color: "var(--ink-3)", padding: "12px" }}>
-            {t("detail.activity.no_commits")}
+            {live.isError ? t("detail.activity.error_commits") : t("detail.activity.no_commits")}
           </div>
         )}
         {commits.map((c, i) => (
@@ -951,6 +1010,22 @@ function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: strin
           <TimelineItem dot="status" title={`${t("detail.timeline.marked_prefix")} ${t(("status." + star.status) as TKey).toLowerCase()}`} when={star.lastReviewedAt || star.starredAt} />
         )}
       </div>
+    </div>
+  );
+}
+
+function ActivitySkeleton({ rows }: { rows: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--surface-2)", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 11, width: `${60 + (i % 3) * 12}%`, borderRadius: 4, background: "var(--surface-2)", marginBottom: 5 }} />
+            <div style={{ height: 9, width: "38%", borderRadius: 4, background: "var(--surface-2)" }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

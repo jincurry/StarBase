@@ -180,6 +180,79 @@ func TestGetReadmeDecodesBase64(t *testing.T) {
 	}
 }
 
+func TestListCommitsAndReleases(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/commits"):
+			if got := r.URL.Query().Get("per_page"); got != "5" {
+				t.Fatalf("per_page=%q want 5", got)
+			}
+			w.Write([]byte(`[
+				{"sha":"abcdef1234567","html_url":"https://gh/c1","commit":{"message":"feat: x\n\nbody","author":{"name":"Ann","date":"2026-01-10T00:00:00Z"}},"author":{"login":"ann"}},
+				{"sha":"0987654321fed","html_url":"https://gh/c2","commit":{"message":"fix: y","author":{"name":"Bob","date":"2026-01-09T00:00:00Z"}},"author":null}
+			]`))
+		case strings.HasSuffix(r.URL.Path, "/releases"):
+			w.Write([]byte(`[{"tag_name":"v2.0.0","name":"Two","html_url":"https://gh/r","published_at":"2026-01-08T00:00:00Z"}]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := newTestClient(srv)
+
+	commits, err := c.ListCommits(context.Background(), "tok", "o/r", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 2 {
+		t.Fatalf("commits=%d want 2", len(commits))
+	}
+	if commits[0].Author == nil || commits[0].Author.Login != "ann" {
+		t.Fatalf("commit[0] author=%+v", commits[0].Author)
+	}
+
+	releases, err := c.ListReleases(context.Background(), "tok", "o/r", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(releases) != 1 || releases[0].TagName != "v2.0.0" || releases[0].HTMLURL == "" {
+		t.Fatalf("releases=%+v", releases)
+	}
+}
+
+func TestCommitActivityParses(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`[{"total":3,"week":1},{"total":0,"week":2},{"total":7,"week":3}]`))
+	}))
+	defer srv.Close()
+	c := newTestClient(srv)
+	weeks, err := c.CommitActivity(context.Background(), "tok", "o/r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(weeks) != 3 || weeks[0] != 3 || weeks[2] != 7 {
+		t.Fatalf("weeks=%v", weeks)
+	}
+}
+
+func TestCommitActivityNotReady(t *testing.T) {
+	// GitHub replies 202 with an empty body while it computes stats.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+	c := newTestClient(srv)
+	weeks, err := c.CommitActivity(context.Background(), "tok", "o/r")
+	if err != nil {
+		t.Fatalf("err=%v want nil (graceful)", err)
+	}
+	if len(weeks) != 0 {
+		t.Fatalf("weeks=%v want empty", weeks)
+	}
+}
+
 func TestAuthorizationHeaderSent(t *testing.T) {
 	gotAuth := ""
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

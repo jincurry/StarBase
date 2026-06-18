@@ -325,6 +325,35 @@ type Commit struct {
 	} `json:"author"`
 }
 
+// CommitActivity returns weekly commit totals for the last year (oldest →
+// newest), as reported by GitHub's statistics API. GitHub computes these
+// stats asynchronously and replies 202 with an empty body while the cache
+// warms; in that case we return an empty slice and no error so callers can
+// simply omit the chart rather than surface a transient failure.
+func (c *Client) CommitActivity(ctx context.Context, token, fullName string) ([]int, error) {
+	res, err := c.do(ctx, token, http.MethodGet, "/repos/"+fullName+"/stats/commit_activity", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusAccepted || res.StatusCode == http.StatusNoContent {
+		return []int{}, nil
+	}
+	var weeks []struct {
+		Total int `json:"total"`
+		Week  int `json:"week"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&weeks); err != nil {
+		// An empty/202-style body decodes poorly; treat as "not ready".
+		return []int{}, nil
+	}
+	out := make([]int, 0, len(weeks))
+	for _, w := range weeks {
+		out = append(out, w.Total)
+	}
+	return out, nil
+}
+
 // ListCommits returns the most recent N commits on the default branch (newest first).
 func (c *Client) ListCommits(ctx context.Context, token, fullName string, limit int) ([]Commit, error) {
 	if limit <= 0 {

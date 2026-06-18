@@ -382,6 +382,7 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
           ) : (
             <div style={{ flex: "1 1 40%", minWidth: 380, maxWidth: 540 }}>
               <DetailPanel star={selected} allStars={stars2}
+                authed={authed}
                 onChangeStatus={setStatus}
                 onAddTag={addTag} onRemoveTag={removeTag}
                 onSaveNote={saveNote}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -573,10 +574,12 @@ func (s *StarService) Readme(ctx context.Context, userID, starID int64) (string,
 	return md, nil
 }
 
-// Activity is the recent commits + releases view shown in the detail panel.
+// Activity is the recent commits + releases view shown in the detail panel,
+// plus a year of weekly commit counts for the Overview sparkline.
 type Activity struct {
-	Commits  []ActivityCommit  `json:"commits"`
-	Releases []ActivityRelease `json:"releases"`
+	Commits        []ActivityCommit  `json:"commits"`
+	Releases       []ActivityRelease `json:"releases"`
+	CommitActivity []int             `json:"commit_activity"`
 }
 
 type ActivityCommit struct {
@@ -615,8 +618,19 @@ func (s *StarService) Activity(ctx context.Context, userID, starID int64) (*Acti
 		return nil, err
 	}
 
-	out := &Activity{Commits: []ActivityCommit{}, Releases: []ActivityRelease{}}
-	if commits, err := s.gh.ListCommits(ctx, token, fullName, 5); err == nil {
+	out := &Activity{Commits: []ActivityCommit{}, Releases: []ActivityRelease{}, CommitActivity: []int{}}
+
+	// Fetch the three GitHub endpoints concurrently. Each leg degrades
+	// independently — a failure on one leaves the others intact.
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		commits, err := s.gh.ListCommits(ctx, token, fullName, 5)
+		if err != nil {
+			return
+		}
+		cs := make([]ActivityCommit, 0, len(commits))
 		for _, c := range commits {
 			msg := c.Commit.Message
 			// First line of the commit message only.
@@ -634,19 +648,34 @@ func (s *StarService) Activity(ctx context.Context, userID, starID int64) (*Acti
 			if len(sha) > 7 {
 				sha = sha[:7]
 			}
-			out.Commits = append(out.Commits, ActivityCommit{
+			cs = append(cs, ActivityCommit{
 				SHA: sha, URL: c.HTMLURL, Author: author,
 				Message: msg, Date: c.Commit.Author.Date,
 			})
 		}
-	}
-	if releases, err := s.gh.ListReleases(ctx, token, fullName, 5); err == nil {
+		out.Commits = cs
+	}()
+	go func() {
+		defer wg.Done()
+		releases, err := s.gh.ListReleases(ctx, token, fullName, 5)
+		if err != nil {
+			return
+		}
+		rs := make([]ActivityRelease, 0, len(releases))
 		for _, r := range releases {
-			out.Releases = append(out.Releases, ActivityRelease{
+			rs = append(rs, ActivityRelease{
 				TagName: r.TagName, Name: r.Name, URL: r.HTMLURL, PublishedAt: r.PublishedAt,
 			})
 		}
-	}
+		out.Releases = rs
+	}()
+	go func() {
+		defer wg.Done()
+		if weeks, err := s.gh.CommitActivity(ctx, token, fullName); err == nil {
+			out.CommitActivity = weeks
+		}
+	}()
+	wg.Wait()
 	return out, nil
 }
 

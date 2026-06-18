@@ -180,6 +180,7 @@ export const api = {
     http<{
       commits: { sha: string; url: string; author: string; message: string; date: string }[];
       releases: { tag_name: string; name: string; url: string; published_at: string }[];
+      commit_activity: number[] | null;
     }>(`/api/stars/${id}/activity`),
 
   // V1.3 share
