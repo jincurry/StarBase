@@ -62,7 +62,7 @@ function NotificationsDropdown({ notifications, onMark, onOpenStar }: Props) {
           <span style={{
             position: "absolute", top: 2, right: 2,
             minWidth: 14, height: 14, padding: "0 4px", borderRadius: 999,
-            background: "var(--accent)", color: "white", fontSize: 9.5,
+            background: "var(--accent)", color: "var(--surface-0)", fontSize: 9.5,
             fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
             border: "1.5px solid var(--surface-1)",
             fontFamily: "'JetBrains Mono', monospace",

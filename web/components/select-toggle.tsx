@@ -77,7 +77,7 @@ export function Toggle({ on, onChange, label }: {
         background: on ? "var(--accent)" : "var(--surface-0)",
         border: `1px solid ${on ? "var(--accent)" : "var(--border-strong)"}`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "white",
+        color: "var(--surface-0)",
       }}>{on && <Icon name="check" size={9} stroke={3} />}</span>
       {label}
     </button>

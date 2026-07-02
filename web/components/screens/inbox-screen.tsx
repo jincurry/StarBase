@@ -83,7 +83,8 @@ function LoadErrorState({ message, onRetry }: { message: string; onRetry: () => 
     }}>
       <div style={{
         width: 56, height: 56, borderRadius: 12,
-        background: "oklch(96% 0.04 25)", color: "oklch(40% 0.18 25)",
+        background: "color-mix(in oklch, oklch(60% 0.18 25) 13%, var(--surface-1))",
+        color: "color-mix(in oklch, oklch(60% 0.18 25) 60%, var(--ink-0))",
         display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14,
       }}>
         <Icon name="bug" size={24} />
@@ -104,9 +105,9 @@ function InboxZero({ processedThisWeek }: { processedThisWeek: number }) {
     <div style={{ padding: "60px 40px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
       <div style={{
         width: 64, height: 64, borderRadius: 14,
-        background: "linear-gradient(135deg, oklch(95% 0.05 145), oklch(92% 0.08 145))",
+        background: "linear-gradient(135deg, color-mix(in oklch, oklch(62% 0.15 145) 12%, var(--surface-1)), color-mix(in oklch, oklch(62% 0.15 145) 22%, var(--surface-1)))",
         display: "flex", alignItems: "center", justifyContent: "center",
-        color: "oklch(45% 0.13 145)", marginBottom: 18,
+        color: "color-mix(in oklch, oklch(62% 0.15 145) 60%, var(--ink-0))", marginBottom: 18,
       }}><Icon name="check" size={28} /></div>
       <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 6px", letterSpacing: "-0.01em" }}>{t("inbox.inbox_zero.title")}</h2>
       <p style={{ fontSize: 13.5, color: "var(--ink-2)", margin: 0, maxWidth: 360, lineHeight: 1.55 }}>
@@ -216,8 +217,9 @@ export function InboxScreen({
       {stale.length > 0 && (
         <div style={{
           padding: "8px 18px", display: "flex", alignItems: "center", gap: 8,
-          background: "oklch(98% 0.025 75)", borderBottom: "1px solid var(--border-soft)",
-          fontSize: 12, color: "oklch(40% 0.1 60)",
+          background: "color-mix(in oklch, oklch(72% 0.14 75) 10%, var(--surface-1))",
+          borderBottom: "1px solid var(--border-soft)",
+          fontSize: 12, color: "color-mix(in oklch, oklch(72% 0.14 75) 55%, var(--ink-0))",
         }}>
           <Icon name="timer" size={13} />
           <span><b>{stale.length}</b> {t("inbox.stale_banner_prefix")} {staleDays} {t("inbox.stale_banner_suffix")}</span>

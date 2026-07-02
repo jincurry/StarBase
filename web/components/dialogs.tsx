@@ -16,7 +16,7 @@ const labelStyle: CSSProperties = {
 const primaryBtnX: CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,
   padding: "6px 14px", borderRadius: 6, border: "none",
-  background: "var(--accent)", color: "white",
+  background: "var(--accent)", color: "var(--surface-0)",
   fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
 };
 const ghostBtnX: CSSProperties = {
@@ -315,9 +315,9 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
       }}>
         <div style={{
           padding: "20px 24px 18px",
-          background: "linear-gradient(135deg, oklch(97% 0.008 260), oklch(96% 0.015 260))",
+          background: "linear-gradient(135deg, color-mix(in oklch, var(--accent) 6%, var(--surface-1)), color-mix(in oklch, var(--accent) 11%, var(--surface-1)))",
           borderBottom: "1px solid var(--border)",
-          color: "oklch(25% 0.03 260)", position: "relative",
+          color: "var(--ink-0)", position: "relative",
         }}>
           <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.7 }}>
             {t("dialog.digest.heading")} · {week}
@@ -327,7 +327,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
           </h2>
           <button onClick={onClose} style={{
             position: "absolute", top: 16, right: 16,
-            background: "rgba(255,255,255,0.5)", border: "none",
+            background: "color-mix(in oklch, var(--surface-0) 55%, transparent)", border: "none",
             color: "currentColor", cursor: "pointer", padding: 5, borderRadius: 6, display: "flex",
           }}><Icon name="x" size={14} /></button>
         </div>
@@ -355,7 +355,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
           </DigestSection>
           <div style={{
             padding: "12px 14px", borderRadius: 8, fontSize: 12.5,
-            background: "oklch(96% 0.04 145)", color: "oklch(35% 0.13 145)",
+            background: "color-mix(in oklch, oklch(60% 0.14 145) 12%, var(--surface-1))", color: "color-mix(in oklch, oklch(60% 0.14 145) 60%, var(--ink-0))",
             border: "1px solid color-mix(in oklch, oklch(60% 0.14 145) 18%, transparent)",
             display: "flex", alignItems: "center", gap: 10,
           }}>
@@ -371,7 +371,7 @@ export function WeeklyDigest({ stars, onClose, onOpenStar }: {
 function DigestStat({ n, label, tone }: { n: number; label: string; tone: "accent" | "green" | "muted" }) {
   const colors: Record<string, { fg: string; bg: string }> = {
     accent: { fg: "var(--accent)", bg: "var(--accent-soft)" },
-    green: { fg: "oklch(50% 0.14 145)", bg: "oklch(96% 0.04 145)" },
+    green: { fg: "color-mix(in oklch, oklch(60% 0.14 145) 60%, var(--ink-0))", bg: "color-mix(in oklch, oklch(60% 0.14 145) 12%, var(--surface-1))" },
     muted: { fg: "var(--ink-2)", bg: "var(--surface-1)" },
   };
   const c = colors[tone];
@@ -435,7 +435,7 @@ export function BulkActionBar({
       position: "absolute", left: "50%", bottom: 16, transform: "translateX(-50%)", zIndex: 25,
       display: "flex", alignItems: "center", gap: 6,
       padding: "6px 8px 6px 14px", borderRadius: 12,
-      background: "oklch(20% 0.01 270)", color: "white",
+      background: "var(--ink-0)", color: "var(--surface-0)",
       boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
       fontSize: 12.5, fontFamily: "inherit",
     }}>
@@ -486,7 +486,7 @@ function BulkBtn({ children, onClick, dot }: { children: any; onClick: () => voi
     <button onClick={onClick} style={{
       display: "inline-flex", alignItems: "center", gap: 5,
       padding: "5px 9px", borderRadius: 6, border: "none",
-      background: "rgba(255,255,255,0.08)", color: "white",
+      background: "color-mix(in oklch, var(--surface-0) 12%, transparent)", color: "var(--surface-0)",
       fontSize: 11.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
     }}>
       {dot && <span style={{ width: 5, height: 5, borderRadius: "50%", background: dot }} />}
@@ -508,7 +508,7 @@ export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDism
     }}>
       <span style={{
         width: 28, height: 28, borderRadius: 7,
-        background: "color-mix(in oklch, var(--accent) 16%, white)",
+        background: "color-mix(in oklch, var(--accent) 16%, var(--surface-1))",
         color: "var(--accent)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}><Icon name="sparkle" size={14} /></span>
@@ -518,7 +518,7 @@ export function DigestBanner({ onOpen, onDismiss }: { onOpen: () => void; onDism
       </div>
       <button onClick={onOpen} style={{
         padding: "5px 12px", borderRadius: 6, border: "none",
-        background: "var(--accent)", color: "white",
+        background: "var(--accent)", color: "var(--surface-0)",
         fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
       }}>{t("notif.digest_open")}</button>
       <button onClick={onDismiss} title={t("detail.close")} style={{

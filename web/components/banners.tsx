@@ -18,9 +18,9 @@ export function TokenInvalidBanner() {
         alignItems: "center",
         gap: 10,
         padding: "8px 18px",
-        background: "oklch(96% 0.05 25)",
+        background: "color-mix(in oklch, oklch(60% 0.18 25) 12%, var(--surface-1))",
         borderBottom: "1px solid color-mix(in oklch, oklch(60% 0.18 25) 28%, transparent)",
-        color: "oklch(38% 0.16 25)",
+        color: "color-mix(in oklch, oklch(60% 0.18 25) 60%, var(--ink-0))",
         fontSize: 12.5,
       }}
     >

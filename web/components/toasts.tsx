@@ -64,14 +64,14 @@ const COLORS: Record<ToastKind, { bg: string; fg: string; border: string; icon: 
     icon: "sparkle",
   },
   success: {
-    bg: "oklch(96% 0.04 145)",
-    fg: "oklch(35% 0.13 145)",
+    bg: "color-mix(in oklch, oklch(60% 0.14 145) 13%, var(--surface-1))",
+    fg: "color-mix(in oklch, oklch(60% 0.14 145) 60%, var(--ink-0))",
     border: "color-mix(in oklch, oklch(60% 0.14 145) 28%, transparent)",
     icon: "check",
   },
   error: {
-    bg: "oklch(96% 0.04 25)",
-    fg: "oklch(40% 0.18 25)",
+    bg: "color-mix(in oklch, oklch(60% 0.18 25) 13%, var(--surface-1))",
+    fg: "color-mix(in oklch, oklch(60% 0.18 25) 60%, var(--ink-0))",
     border: "color-mix(in oklch, oklch(60% 0.18 25) 32%, transparent)",
     icon: "bug",
   },

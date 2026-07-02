@@ -6,12 +6,22 @@ import { LANGUAGE_COLOR } from "@/lib/mock-data";
 import { useT } from "@/lib/i18n/context";
 import type { TKey } from "@/lib/i18n/dict";
 
+// Status colours derive from the mid-tone dot: backgrounds are a light wash
+// of it over the theme surface, foregrounds a strong mix toward the theme's
+// text colour. Both flip correctly between light and dark themes.
+function statusTint(dot: string): { bg: string; fg: string } {
+  return {
+    bg: `color-mix(in oklch, ${dot} 13%, var(--surface-1))`,
+    fg: `color-mix(in oklch, ${dot} 55%, var(--ink-0))`,
+  };
+}
+
 export const STATUSES: Record<StatusKey, { label: string; dot: string; bg: string; fg: string; key: string }> = {
-  inbox:     { label: "Inbox",     dot: "oklch(62% 0.16 255)", bg: "oklch(96% 0.02 255)",  fg: "oklch(38% 0.14 255)", key: "—" },
-  reviewing: { label: "Reviewing", dot: "oklch(72% 0.15 75)",  bg: "oklch(96% 0.04 80)",   fg: "oklch(42% 0.12 60)",  key: "R" },
-  kept:      { label: "Kept",      dot: "oklch(62% 0.15 145)", bg: "oklch(96% 0.04 145)",  fg: "oklch(38% 0.13 145)", key: "S" },
-  dropped:   { label: "Dropped",   dot: "oklch(64% 0.07 25)",  bg: "oklch(96% 0.02 25)",   fg: "oklch(45% 0.07 25)",  key: "D" },
-  archived:  { label: "Archived",  dot: "oklch(70% 0.01 250)", bg: "oklch(96% 0.005 250)", fg: "oklch(45% 0.01 250)", key: "E" },
+  inbox:     { label: "Inbox",     dot: "oklch(62% 0.16 255)", ...statusTint("oklch(62% 0.16 255)"), key: "—" },
+  reviewing: { label: "Reviewing", dot: "oklch(72% 0.15 75)",  ...statusTint("oklch(72% 0.15 75)"),  key: "R" },
+  kept:      { label: "Kept",      dot: "oklch(62% 0.15 145)", ...statusTint("oklch(62% 0.15 145)"), key: "S" },
+  dropped:   { label: "Dropped",   dot: "oklch(64% 0.07 25)",  ...statusTint("oklch(64% 0.07 25)"),  key: "D" },
+  archived:  { label: "Archived",  dot: "oklch(70% 0.01 250)", ...statusTint("oklch(70% 0.01 250)"), key: "E" },
 };
 
 export const TAG_COLOR: Record<string, string> = {
@@ -79,8 +89,8 @@ export function TagChip({ tag, onRemove, dim = false }: TagChipProps) {
       display: "inline-flex", alignItems: "center", gap: 4,
       padding: "1.5px 7px 1.5px 6px",
       borderRadius: 5, fontSize: 11, fontWeight: 500,
-      color: dim ? "oklch(50% 0.01 250)" : color,
-      background: dim ? "oklch(96% 0.005 250)" : `color-mix(in oklch, ${color} 8%, white)`,
+      color: dim ? "var(--ink-2)" : `color-mix(in oklch, ${color} 60%, var(--ink-0))`,
+      background: dim ? "var(--surface-2)" : `color-mix(in oklch, ${color} 10%, var(--surface-1))`,
       border: `1px solid color-mix(in oklch, ${color} ${dim ? 10 : 22}%, transparent)`,
       fontFamily: "Inter, sans-serif",
     }}>
@@ -135,7 +145,9 @@ export function SectionLabel({ children, inline }: { children: ReactNode; inline
 
 export const primaryBtn: CSSProperties = {
   padding: "6px 12px", borderRadius: 6, border: "none",
-  background: "var(--accent)", color: "white",
+  // surface-0 flips with the theme: white text in light mode, charcoal
+  // text on the lightened accent in dark mode.
+  background: "var(--accent)", color: "var(--surface-0)",
   fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
 };
 

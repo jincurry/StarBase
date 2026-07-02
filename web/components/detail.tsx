@@ -119,7 +119,7 @@ function DetailHeader({ star, githubUrl, onClose, onToggleWatch }: {
         <a href={githubUrl} target="_blank" rel="noreferrer" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "5px 11px", borderRadius: 6, textDecoration: "none",
-          background: "oklch(20% 0.01 270)", color: "white",
+          background: "var(--ink-0)", color: "var(--surface-0)",
           fontSize: 12, fontWeight: 500,
         }}>
           <GithubMark size={13} />{t("detail.open_on_github")}<Icon name="extLink" size={11} />
@@ -410,7 +410,7 @@ function OverviewTab({ star, allStars, authed, onChangeStatus, onAddTag, onRemov
         <>
           <SectionLabel>{t("detail.section.note_preview")}</SectionLabel>
           <div style={{
-            padding: "10px 12px", background: "oklch(98% 0.025 75)",
+            padding: "10px 12px", background: "color-mix(in oklch, oklch(72% 0.14 75) 9%, var(--surface-1))",
             border: "1px solid color-mix(in oklch, oklch(70% 0.14 75) 22%, transparent)",
             borderRadius: 8, fontSize: 12.5, color: "var(--ink-1)",
             fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6,
@@ -946,7 +946,7 @@ function ActivityTab({ star, githubUrl, authed }: { star: Star; githubUrl: strin
             <span style={{
               padding: "2px 8px", borderRadius: 4,
               background: i === 0 ? "var(--accent)" : "var(--surface-2)",
-              color: i === 0 ? "white" : "var(--ink-1)",
+              color: i === 0 ? "var(--surface-0)" : "var(--ink-1)",
               fontSize: 11, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace",
             }}>{r.tag}</span>
             <div style={{ flex: 1, minWidth: 0 }}>

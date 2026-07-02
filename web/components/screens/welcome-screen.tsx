@@ -64,7 +64,7 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
       height: "100%", overflow: "auto",
       display: "flex", flexDirection: "column", alignItems: "center",
       padding: "60px 24px",
-      background: "radial-gradient(ellipse 600px 400px at 50% 0%, oklch(97% 0.012 260), transparent), var(--surface-1)",
+      background: "radial-gradient(ellipse 600px 400px at 50% 0%, color-mix(in oklch, var(--accent) 7%, var(--surface-1)), transparent), var(--surface-1)",
     }}>
       <div style={{
         width: 56, height: 56, borderRadius: 14,
@@ -105,7 +105,7 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
                     {c.rec && (
                       <span style={{
                         marginLeft: 8, fontSize: 10, padding: "1px 6px", borderRadius: 4,
-                        background: "var(--accent)", color: "white", fontWeight: 500,
+                        background: "var(--accent)", color: "var(--surface-0)", fontWeight: 500,
                       }}>{t("welcome.recommended")}</span>
                     )}
                   </div>
@@ -154,7 +154,7 @@ export function WelcomeScreen({ onContinue, onStartSync, liveProgress, liveStage
         <div style={{ width: 460, maxWidth: "100%", textAlign: "center" }}>
           <div style={{
             width: 48, height: 48, margin: "0 auto 16px", borderRadius: "50%",
-            background: "oklch(95% 0.06 145)", color: "oklch(45% 0.13 145)",
+            background: "color-mix(in oklch, oklch(62% 0.15 145) 13%, var(--surface-1))", color: "color-mix(in oklch, oklch(62% 0.15 145) 60%, var(--ink-0))",
             display: "flex", alignItems: "center", justifyContent: "center",
           }}><Icon name="check" size={22} stroke={3} /></div>
           <h2 style={{ fontSize: 22, fontWeight: 600, margin: "0 0 8px" }}>{t("welcome.done.title")}</h2>

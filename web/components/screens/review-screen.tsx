@@ -81,15 +81,15 @@ export function ReviewScreen({ stars, onOpen, onSync, syncing }: Props) {
       <div style={{ overflow: "auto", flex: 1, padding: "20px 24px 40px" }}>
         <ReviewSection icon="sparkle" title={t("review.recently.title")}
           subtitle={`${recently.length} ${t("review.recently.subtitle")}`}
-          tone="oklch(60% 0.16 255)" tint="oklch(96% 0.04 255)"
+          tone="oklch(60% 0.16 255)" tint="color-mix(in oklch, oklch(60% 0.16 255) 10%, var(--surface-1))"
           stars={recently} onOpen={(id) => openWithLog(recently.find((s) => s.id === id)!, "recently")} />
         <ReviewSection icon="timer" title={t("review.stale.title")}
           subtitle={`${stale.length} ${t("review.stale.subtitle_prefix")} ${staleDays} ${t("review.stale.subtitle_suffix")}`}
-          tone="oklch(58% 0.13 60)" tint="oklch(97% 0.04 75)"
+          tone="oklch(58% 0.13 60)" tint="color-mix(in oklch, oklch(58% 0.13 60) 10%, var(--surface-1))"
           stars={stale} onOpen={(id) => openWithLog(stale.find((s) => s.id === id)!, "stale")} />
         <ReviewSection icon="review" title={t("review.rediscover.title")}
           subtitle={t("review.rediscover.subtitle")}
-          tone="oklch(54% 0.14 295)" tint="oklch(96% 0.04 295)"
+          tone="oklch(54% 0.14 295)" tint="color-mix(in oklch, oklch(54% 0.14 295) 10%, var(--surface-1))"
           stars={rediscover} onOpen={(id) => openWithLog(rediscover.find((s) => s.id === id)!, "rediscover")} />
       </div>
     </div>
@@ -113,8 +113,8 @@ function ReviewSection({
       }}>
         <span style={{
           width: 26, height: 26, borderRadius: 6,
-          background: `color-mix(in oklch, ${tone} 14%, white)`,
-          color: tone, display: "flex", alignItems: "center", justifyContent: "center",
+          background: `color-mix(in oklch, ${tone} 14%, var(--surface-1))`,
+          color: `color-mix(in oklch, ${tone} 60%, var(--ink-0))`, display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <Icon name={icon} size={14} />
         </span>
@@ -123,9 +123,9 @@ function ReviewSection({
           <div style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{subtitle}</div>
         </div>
         <span style={{
-          fontSize: 11.5, fontWeight: 600, color: tone, fontVariantNumeric: "tabular-nums",
+          fontSize: 11.5, fontWeight: 600, color: `color-mix(in oklch, ${tone} 60%, var(--ink-0))`, fontVariantNumeric: "tabular-nums",
           padding: "1px 8px", borderRadius: 999,
-          background: `color-mix(in oklch, ${tone} 10%, white)`,
+          background: `color-mix(in oklch, ${tone} 12%, var(--surface-1))`,
         }}>{stars.length}</span>
       </div>
       <div style={{

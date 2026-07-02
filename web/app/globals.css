@@ -20,21 +20,24 @@
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
+/* Soft charcoal: slightly lifted surfaces with a whisper of blue-slate,
+   lowered text contrast (90% instead of 96% white), gentler shadows.
+   Pure-neutral 17% black + 96% white reads harsh at night. */
 [data-theme="dark"] {
-  --surface-0: oklch(17% 0 0);
-  --surface-1: oklch(20% 0 0);
-  --surface-2: oklch(25% 0 0);
-  --border: oklch(29% 0 0);
-  --border-soft: oklch(24% 0 0);
-  --border-strong: oklch(36% 0 0);
-  --ink-0: oklch(96% 0 0);
-  --ink-1: oklch(86% 0 0);
-  --ink-2: oklch(70% 0 0);
-  --ink-3: oklch(54% 0 0);
-  --accent: oklch(72% 0.10 260);
-  --accent-soft: oklch(28% 0.05 260);
-  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --surface-0: oklch(21.5% 0.008 260);
+  --surface-1: oklch(24% 0.008 260);
+  --surface-2: oklch(28.5% 0.01 260);
+  --border: oklch(31.5% 0.01 260);
+  --border-soft: oklch(27% 0.009 260);
+  --border-strong: oklch(38% 0.012 260);
+  --ink-0: oklch(90% 0.004 260);
+  --ink-1: oklch(80% 0.005 260);
+  --ink-2: oklch(66% 0.007 260);
+  --ink-3: oklch(52% 0.007 260);
+  --accent: oklch(74% 0.08 260);
+  --accent-soft: oklch(29.5% 0.038 260);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 * {
