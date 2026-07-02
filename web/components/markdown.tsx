@@ -2,15 +2,76 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+
+// GitHub-flavoured sanitize schema: keep the defaults (which mirror GitHub's
+// own allowlist) but let images keep their sizing/alignment attributes that
+// project READMEs rely on.
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    img: [...(defaultSchema.attributes?.img ?? []), "width", "height", "align"],
+    "*": [...(defaultSchema.attributes?.["*"] ?? []), "align"],
+  },
+};
+
+export interface MarkdownRepo {
+  owner: string;
+  name: string;
+}
+
+// READMEs reference images/links relative to the repo root. Rendered on our
+// origin those 404, so resolve them against GitHub: images go to
+// raw.githubusercontent.com (blob pages return HTML, not image bytes),
+// links go to the repo's blob view.
+function resolveUrl(url: string | undefined, repo: MarkdownRepo | undefined, kind: "img" | "link"): string | undefined {
+  if (!url || url.startsWith("#") || url.startsWith("data:") || url.startsWith("mailto:")) return url;
+  if (/^(https?:)?\/\//i.test(url)) {
+    if (kind === "img") {
+      // github.com/o/r/blob/ref/path serves an HTML page — swap to raw bytes.
+      const m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/i);
+      if (m) return `https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
+    }
+    return url;
+  }
+  if (!repo) return url;
+  const path = url.replace(/^\.\//, "").replace(/^\//, "");
+  return kind === "img"
+    ? `https://raw.githubusercontent.com/${repo.owner}/${repo.name}/HEAD/${path}`
+    : `https://github.com/${repo.owner}/${repo.name}/blob/HEAD/${path}`;
+}
 
 /**
  * Shared markdown renderer with project styling. Used for the README tab
- * and the Notes preview mode.
+ * and the Notes preview mode. Pass `repo` when rendering a repo README so
+ * relative image/link paths resolve against that repository.
  */
-export function Markdown({ source }: { source: string }) {
+export function Markdown({ source, repo }: { source: string; repo?: MarkdownRepo }) {
   return (
     <div className="sb-md">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{source}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
+        components={{
+          img: ({ node, src, ...props }) => (
+            // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+            <img {...props} src={resolveUrl(src, repo, "img")} loading="lazy" />
+          ),
+          a: ({ node, href, ...props }) => {
+            const resolved = resolveUrl(href, repo, "link");
+            const external = !!resolved && !resolved.startsWith("#");
+            return (
+              <a
+                {...props}
+                href={resolved}
+                {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
+              />
+            );
+          },
+        }}
+      >{source}</ReactMarkdown>
       <style jsx>{`
         .sb-md :global(h1) {
           font-size: 22px;
@@ -103,7 +164,17 @@ export function Markdown({ source }: { source: string }) {
         }
         .sb-md :global(img) {
           max-width: 100%;
+          height: auto;
           border-radius: 6px;
+        }
+        .sb-md :global([align="center"]) {
+          text-align: center;
+        }
+        .sb-md :global(summary) {
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--ink-1);
+          margin-bottom: 8px;
         }
         .sb-md :global(hr) {
           border: none;

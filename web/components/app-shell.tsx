@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useWindowWidth } from "@/lib/use-window-width";
 import type { Star, User } from "@/lib/types";
@@ -112,6 +112,35 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
   const dismissDigest = useCallback(() => {
     setDigestVisible(false);
     try { localStorage.setItem("starbase-digest-dismissed", digestWeekKey()); } catch {}
+  }, []);
+
+  // Detail panel width (wide layout only), draggable via the divider and
+  // persisted so the chosen split survives navigation and reloads.
+  const [detailW, setDetailW] = useState(() => {
+    if (typeof window === "undefined") return 440;
+    const saved = Number(localStorage.getItem("starbase-detail-width"));
+    return Number.isFinite(saved) && saved >= 340 ? saved : 440;
+  });
+  const detailWRef = useRef(detailW);
+  detailWRef.current = detailW;
+  const startResize = useCallback((e: ReactPointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = detailWRef.current;
+    const clamp = (w: number) =>
+      Math.min(Math.max(w, 340), Math.max(420, window.innerWidth - 560));
+    const move = (ev: PointerEvent) => setDetailW(clamp(startW + (startX - ev.clientX)));
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem("starbase-detail-width", String(detailWRef.current)); } catch {}
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   }, []);
   const [theme, setTheme] = useState<"light" | "dark">(
     typeof window !== "undefined" && (localStorage.getItem("starbase-theme") as any) === "dark" ? "dark" : "light"
@@ -329,9 +358,8 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
         {tokenInvalid && <TokenInvalidBanner />}
         <div style={{ flex: 1, minWidth: 0, display: "flex", position: "relative", overflow: "hidden" }}>
         <div style={{
-          flex: !isNarrow && detailOpen && (route === "inbox" || route === "stars") ? "1 1 60%" : "1 1 100%",
+          flex: "1 1 auto",
           minWidth: 0, display: "flex", flexDirection: "column",
-          borderRight: !isNarrow && detailOpen && (route === "inbox" || route === "stars") ? "1px solid var(--border)" : "none",
         }}>
           {route === "inbox" && (
             <InboxScreen stars={stars2}
@@ -400,16 +428,35 @@ export function AppShell({ initialRoute }: { initialRoute: Route }) {
               </div>
             </>
           ) : (
-            <div style={{ flex: "1 1 40%", minWidth: 380, maxWidth: 540 }}>
-              <DetailPanel star={selected} allStars={stars2}
-                authed={authed}
-                onChangeStatus={setStatus}
-                onAddTag={addTag} onRemoveTag={removeTag}
-                onSaveNote={saveNote}
-                onToggleWatch={toggleWatch}
-                onOpenStar={openStar}
-                onClose={() => setDetailOpen(false)} />
-            </div>
+            <>
+              <div
+                onPointerDown={startResize}
+                title="Drag to resize"
+                style={{
+                  width: 7, flexShrink: 0, cursor: "col-resize",
+                  background: "linear-gradient(to right, transparent 3px, var(--border) 3px, var(--border) 4px, transparent 4px)",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background =
+                    "linear-gradient(to right, transparent 2px, var(--accent) 2px, var(--accent) 5px, transparent 5px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background =
+                    "linear-gradient(to right, transparent 3px, var(--border) 3px, var(--border) 4px, transparent 4px)";
+                }}
+              />
+              <div style={{ width: detailW, flexShrink: 0, minWidth: 340 }}>
+                <DetailPanel star={selected} allStars={stars2}
+                  authed={authed}
+                  onChangeStatus={setStatus}
+                  onAddTag={addTag} onRemoveTag={removeTag}
+                  onSaveNote={saveNote}
+                  onToggleWatch={toggleWatch}
+                  onOpenStar={openStar}
+                  onClose={() => setDetailOpen(false)} />
+              </div>
+            </>
           )
         )}
         </div>

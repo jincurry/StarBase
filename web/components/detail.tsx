@@ -676,7 +676,7 @@ function ReadmeTab({ star, githubUrl, authed }: { star: Star; githubUrl: string;
           live.isLoading ? (
             <ReadmeSkeleton />
           ) : liveContent ? (
-            <Markdown source={liveContent} />
+            <Markdown source={liveContent} repo={{ owner: star.owner, name: star.name }} />
           ) : live.isError ? (
             <EmptyTabState icon="bug" text={t("detail.readme.error")} />
           ) : (
